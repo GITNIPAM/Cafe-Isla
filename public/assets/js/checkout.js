@@ -4,8 +4,11 @@
 
   const savedAddress = form.elements.saved_address_id;
   const zone = form.elements.delivery_zone;
+  const localAreaGroup = form.querySelector('[data-local-area-group]');
+  const localAreaSelect = document.getElementById('local_express_area');
   const city = form.elements.shipping_city;
   const province = form.elements.shipping_province;
+  const postalCode = form.elements.shipping_postal_code;
   const newAddress = form.querySelector('[data-new-address]');
   const status = form.querySelector('[data-quote-status]');
   const subtotal = form.querySelector('[data-quote-subtotal]');
@@ -20,10 +23,29 @@
   let timer;
   let pendingRequest;
 
+  function syncLocalExpressFields() {
+    const isLocal = zone.value === 'local_express';
+    if (localAreaGroup) localAreaGroup.hidden = !isLocal;
+
+    if (isLocal && localAreaSelect) {
+      const [areaCity, areaProvince, areaPostal] = localAreaSelect.value.split('|');
+      city.value = areaCity;
+      province.value = areaProvince;
+      if (postalCode) postalCode.value = areaPostal;
+    }
+
+    city.readOnly = isLocal;
+    province.readOnly = isLocal;
+    if (postalCode) postalCode.readOnly = isLocal;
+  }
+
   function updateAddressFields() {
     const useSavedAddress = Boolean(savedAddress?.value);
     newAddress.hidden = useSavedAddress;
     newAddress.disabled = useSavedAddress;
+    if (!useSavedAddress) {
+      syncLocalExpressFields();
+    }
   }
 
   function showUnconfirmed(message) {
@@ -109,7 +131,14 @@
     }
     scheduleQuote();
   });
-  zone.addEventListener('change', scheduleQuote);
+  zone.addEventListener('change', () => {
+    syncLocalExpressFields();
+    scheduleQuote();
+  });
+  localAreaSelect?.addEventListener('change', () => {
+    syncLocalExpressFields();
+    scheduleQuote();
+  });
   city.addEventListener('input', scheduleQuote);
   province.addEventListener('input', scheduleQuote);
   form.addEventListener('submit', (event) => {

@@ -119,7 +119,7 @@ class CheckoutController extends Controller
             'shipping_address_line' => ['required_without:saved_address_id', 'nullable', 'string', 'max:255'],
             'shipping_city' => ['required_without:saved_address_id', 'nullable', 'string', 'max:120'],
             'shipping_province' => ['required_without:saved_address_id', 'nullable', 'string', 'max:120'],
-            'shipping_postal_code' => ['required_without:saved_address_id', 'nullable', 'string', 'max:20'],
+            'shipping_postal_code' => ['required_without:saved_address_id', 'nullable', 'regex:/^\d{4}$/'],
             'delivery_zone' => ['required', 'in:local_express,provincial_parcel'],
             'payment_method' => ['required', 'in:gcash,cod'],
             'payment_account_ref' => ['nullable', 'string', 'max:80'],

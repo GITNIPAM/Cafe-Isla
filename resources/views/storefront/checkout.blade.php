@@ -47,8 +47,11 @@
                                 <select id="saved_address_id" name="saved_address_id" class="field-control">
                                     <option value="">-- Enter New Shipping Address Below --</option>
                                     @foreach($addresses as $addr)
-                                        <option value="{{ $addr->id }}" data-delivery-zone="{{ $addr->delivery_zone }}" @selected($selectedAddressId == $addr->id)>
-                                            {{ $addr->label }} — {{ $addr->formattedAddress() }} ({{ $addr->delivery_zone === 'local_express' ? 'Local Express' : 'Provincial Parcel' }})
+                                        @php
+                                            $addrBlockedForDrinks = $summary['has_perishables'] && $addr->delivery_zone !== 'local_express';
+                                        @endphp
+                                        <option value="{{ $addr->id }}" data-delivery-zone="{{ $addr->delivery_zone }}" @selected($selectedAddressId == $addr->id && ! $addrBlockedForDrinks) @disabled($addrBlockedForDrinks)>
+                                            {{ $addr->label }} — {{ $addr->formattedAddress() }} ({{ $addr->delivery_zone === 'local_express' ? 'Local Express' : ($addrBlockedForDrinks ? 'Merch Only · Nationwide Parcel' : 'Nationwide Parcel') }})
                                         </option>
                                     @endforeach
                                 </select>
@@ -72,20 +75,28 @@
                             <input type="text" id="shipping_address_line" name="shipping_address_line" value="{{ old('shipping_address_line') }}" placeholder="e.g. 18 Urbiztondo Coastal Lane" class="field-control">
                         </div>
 
+                        <div class="field-group" data-local-area-group>
+                            <label for="local_express_area" class="field-label">Local Express Coverage Area</label>
+                            <select id="local_express_area" class="field-control">
+                                <option value="Dasmariñas|Cavite|4114" @selected(old('shipping_city') === 'Dasmariñas')>Dasmariñas, Cavite — 4114</option>
+                                <option value="San Juan|La Union|2514" @selected(old('shipping_city', 'San Juan') === 'San Juan')>San Juan, La Union — 2514</option>
+                            </select>
+                        </div>
+
                         <div class="form-row-2">
                             <div class="field-group">
                                 <label for="shipping_city" class="field-label">City / Municipality</label>
-                                <input type="text" id="shipping_city" name="shipping_city" value="{{ old('shipping_city') }}" class="field-control">
+                                <input type="text" id="shipping_city" name="shipping_city" value="{{ old('shipping_city') }}" placeholder="e.g. Cebu City" class="field-control">
                             </div>
                             <div class="field-group">
                                 <label for="shipping_province" class="field-label">Province</label>
-                                <input type="text" id="shipping_province" name="shipping_province" value="{{ old('shipping_province') }}" class="field-control">
+                                <input type="text" id="shipping_province" name="shipping_province" value="{{ old('shipping_province') }}" placeholder="e.g. Cebu" class="field-control">
                             </div>
                         </div>
 
                         <div class="field-group">
-                            <label for="shipping_postal_code" class="field-label">Postal Code</label>
-                            <input type="text" id="shipping_postal_code" name="shipping_postal_code" value="{{ old('shipping_postal_code') }}" class="field-control">
+                            <label for="shipping_postal_code" class="field-label">Postal Code (4-digit PH)</label>
+                            <input type="text" id="shipping_postal_code" name="shipping_postal_code" value="{{ old('shipping_postal_code') }}" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="e.g. 6000" class="field-control">
                         </div>
 
                         <label style="display:flex;align-items:center;gap:0.5rem;font-family:var(--font-mono);font-size:0.8rem;">

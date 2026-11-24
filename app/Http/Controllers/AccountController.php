@@ -57,9 +57,24 @@ class AccountController extends Controller
             'barangay' => ['nullable', 'string', 'max:120'],
             'city' => ['required', 'string', 'max:120'],
             'province' => ['required', 'string', 'max:120'],
-            'postal_code' => ['required', 'string', 'max:20'],
+            'postal_code' => ['required', 'regex:/^\d{4}$/'],
             'delivery_zone' => ['required', 'in:local_express,provincial_parcel'],
+        ], [
+            'postal_code.regex' => 'Enter a valid 4-digit Philippine postal code.',
         ]);
+
+        if ($validated['delivery_zone'] === 'local_express') {
+            $localMap = [
+                'dasmarinas|cavite' => '4114',
+                'san juan|la union' => '2514',
+            ];
+            $key = strtolower(str_replace('ñ', 'n', trim($validated['city']))).'|'.strtolower(trim($validated['province']));
+            if (! isset($localMap[$key]) || $localMap[$key] !== trim($validated['postal_code'])) {
+                return back()->withErrors([
+                    'city' => 'Local Express is only available in Dasmariñas, Cavite (4114) and San Juan, La Union (2514).',
+                ])->withInput();
+            }
+        }
 
         $user = $request->user();
         $isFirst = $user->addresses()->count() === 0;

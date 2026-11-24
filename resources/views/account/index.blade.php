@@ -109,7 +109,7 @@
                                     @if($order->returnRequests->isNotEmpty())
                                         <div style="margin-top:0.85rem;padding-top:0.65rem;border-top:1px dashed var(--espresso-ink);">
                                             @foreach($order->returnRequests as $ret)
-                                                <div style="font-family:var(--font-mono);font-size:0.78rem;display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;margin-top:0.25rem;">
+                                                <div style="font-family:var(--font-mono);font-size:0.78rem;display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;flex-wrap:wrap;margin-top:0.25rem;">
                                                     <span>
                                                         <strong>{{ strtoupper(str_replace('_', ' ', $ret->request_type)) }}</strong>: {{ $ret->reason }}
                                                         @if($ret->restock_applied)
@@ -212,7 +212,7 @@
                         </div>
                     @endforeach
 
-                    <form method="POST" action="{{ route('account.addresses.store') }}" class="form-stack" style="margin-top:1rem;">
+                    <form method="POST" action="{{ route('account.addresses.store') }}" class="form-stack" style="margin-top:1rem;" data-account-address-form>
                         @csrf
                         <div class="form-row-2">
                             <input type="text" name="label" placeholder="Label (Home / Studio)" class="field-control" required>
@@ -220,38 +220,94 @@
                         </div>
                         <div class="form-row-2">
                             <input type="text" name="phone" value="{{ $user->phone }}" placeholder="Phone" class="field-control" required>
-                            <select name="delivery_zone" class="field-control">
-                                <option value="local_express">Local Express</option>
-                                <option value="provincial_parcel">Provincial Parcel</option>
+                            <select name="delivery_zone" class="field-control" data-account-zone>
+                                <option value="local_express">Local Express (Drinks &amp; Merch)</option>
+                                <option value="provincial_parcel">Nationwide Parcel (Merch Only)</option>
+                            </select>
+                        </div>
+                        <div data-account-local-group>
+                            <select class="field-control" data-account-local-area aria-label="Local Express Coverage Area">
+                                <option value="Dasmariñas|Cavite|4114">Dasmariñas, Cavite — 4114</option>
+                                <option value="San Juan|La Union|2514" selected>San Juan, La Union — 2514</option>
                             </select>
                         </div>
                         <input type="text" name="street_address" placeholder="Street / House No." class="field-control" required>
                         <div class="form-row-2">
-                            <input type="text" name="city" placeholder="City" class="field-control" required>
+                            <input type="text" name="city" placeholder="City / Municipality" class="field-control" required>
                             <input type="text" name="province" placeholder="Province" class="field-control" required>
                         </div>
-                        <input type="text" name="postal_code" placeholder="Postal Code" class="field-control" required>
+                        <input type="text" name="postal_code" placeholder="Postal Code (4-digit PH)" maxlength="4" pattern="\d{4}" inputmode="numeric" class="field-control" required>
                         <button type="submit" class="tag-btn tag-btn--outline tag-btn--sm">Add Address</button>
                     </form>
+
+                    @push('scripts')
+                        <script>
+                            (() => {
+                                const addrForm = document.querySelector('[data-account-address-form]');
+                                if (!addrForm) return;
+                                const zone = addrForm.querySelector('[data-account-zone]');
+                                const localGroup = addrForm.querySelector('[data-account-local-group]');
+                                const localArea = addrForm.querySelector('[data-account-local-area]');
+                                const city = addrForm.elements.city;
+                                const province = addrForm.elements.province;
+                                const postal = addrForm.elements.postal_code;
+
+                                const sync = () => {
+                                    const isLocal = zone.value === 'local_express';
+                                    localGroup.hidden = !isLocal;
+                                    if (isLocal) {
+                                        const [c, p, z] = localArea.value.split('|');
+                                        city.value = c;
+                                        province.value = p;
+                                        postal.value = z;
+                                    } else {
+                                        city.value = '';
+                                        province.value = '';
+                                        postal.value = '';
+                                    }
+                                    city.readOnly = isLocal;
+                                    province.readOnly = isLocal;
+                                    postal.readOnly = isLocal;
+                                };
+
+                                zone.addEventListener('change', sync);
+                                localArea.addEventListener('change', sync);
+                                sync();
+                            })();
+                        </script>
+                    @endpush
                 </div>
 
                 <div class="ledger-panel">
-                    <h2 class="ledger-panel__title">My Email Notifications ({{ $emailLogs->count() }})</h2>
-                    @forelse($emailLogs as $mail)
-                        <details style="border-bottom:1px solid var(--hairline);padding:0.55rem 0;font-family:var(--font-mono);font-size:0.78rem;">
-                            <summary style="cursor:pointer;">
-                                <strong>{{ $mail->subject }}</strong>
-                                <div style="color:var(--taupe-muted);">{{ $mail->sent_at?->format('M d, Y g:i A') }} &middot; {{ $mail->smtp_status }}</div>
-                            </summary>
-                            <div style="margin-top:0.55rem;padding:0.75rem;border:1px solid var(--hairline);background:var(--bg-parchment);font-family:var(--font-serif);font-size:0.86rem;line-height:1.5;">
-                                {!! $mail->body_html !!}
+                    <details class="ledger-collapse">
+                        <summary class="ledger-collapse__summary">
+                            <div>
+                                <h2 class="ledger-panel__title" style="margin:0;">My Email Notifications ({{ $emailLogs->count() }})</h2>
+                                <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--taupe-muted);">
+                                    Sent via Gmail &amp; logged locally
+                                </span>
                             </div>
-                        </details>
-                    @empty
-                        <div style="font-family:var(--font-mono);font-size:0.78rem;color:var(--taupe-muted);">
-                            No email notifications yet.
+                            <span class="tag-btn tag-btn--outline tag-btn--sm ledger-collapse__toggle">View Log</span>
+                        </summary>
+
+                        <div class="ledger-collapse__body">
+                            @forelse($emailLogs as $mail)
+                                <details style="border-bottom:1px solid var(--hairline);padding:0.55rem 0;font-family:var(--font-mono);font-size:0.78rem;">
+                                    <summary style="cursor:pointer;">
+                                        <strong>{{ $mail->subject }}</strong>
+                                        <div style="color:var(--taupe-muted);">{{ $mail->sent_at?->format('M d, Y g:i A') }} &middot; {{ $mail->smtp_status }}</div>
+                                    </summary>
+                                    <div style="margin-top:0.55rem;padding:0.75rem;border:1px solid var(--hairline);background:var(--bg-parchment);font-family:var(--font-serif);font-size:0.86rem;line-height:1.5;">
+                                        {!! $mail->body_html !!}
+                                    </div>
+                                </details>
+                            @empty
+                                <div style="font-family:var(--font-mono);font-size:0.78rem;color:var(--taupe-muted);">
+                                    No email notifications yet.
+                                </div>
+                            @endforelse
                         </div>
-                    @endforelse
+                    </details>
                 </div>
             </div>
         </div>
