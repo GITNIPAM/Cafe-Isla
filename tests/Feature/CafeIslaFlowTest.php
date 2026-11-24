@@ -209,7 +209,7 @@ class CafeIslaFlowTest extends TestCase
     {
         $admin = User::where('email', 'admin@cafeisla.ph')->firstOrFail();
         $tmpCopy = sys_get_temp_dir().DIRECTORY_SEPARATOR.'cafe_isla_upload_test.jpg';
-        copy(public_path('assets/images/drinks/muni-matcha.jpg'), $tmpCopy);
+        copy(public_path('assets/images/drinks/urbiztondo-morning-matcha.jpg'), $tmpCopy);
         $file = new UploadedFile($tmpCopy, 'island-test-drink.jpg', 'image/jpeg', null, true);
 
         $res = $this->actingAs($admin)->post('/admin/products', [

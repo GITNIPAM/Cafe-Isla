@@ -231,7 +231,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Sweet umami · toasted oat · velvety finish',
                 'is_perishable' => true,
                 'base_price' => 185,
-                'image_path' => 'assets/images/drinks/muni-matcha.jpg',
+                'image_path' => 'assets/images/drinks/urbiztondo-morning-matcha.jpg',
                 'is_featured' => true,
                 'variants' => [
                     ['code' => 'CI-LU-001-HOT', 'label' => 'Hot 12oz', 'serve_temp' => 'hot', 'size_option' => '12oz', 'price' => 185, 'stock_qty' => 28, 'threshold' => 5],
@@ -249,7 +249,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Burnt caramel · coastal sea salt · deep jade matcha',
                 'is_perishable' => true,
                 'base_price' => 205,
-                'image_path' => 'assets/images/drinks/dulce-matcha.jpg',
+                'image_path' => 'assets/images/drinks/monaliza-caramel-matcha.jpg',
                 'is_featured' => true,
                 'variants' => [
                     ['code' => 'CI-LU-002-ICE', 'label' => 'Iced 16oz', 'serve_temp' => 'iced', 'size_option' => '16oz', 'price' => 205, 'stock_qty' => 24, 'threshold' => 5],
@@ -267,7 +267,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Fresh bukó · creamy matcha cloud · crisp finish',
                 'is_perishable' => true,
                 'base_price' => 195,
-                'image_path' => 'assets/images/editorial/series-la-union.jpg',
+                'image_path' => 'assets/images/drinks/carille-coco-matcha.jpg',
                 'is_featured' => true,
                 'variants' => [
                     ['code' => 'CI-LU-003-ICE', 'label' => 'Iced 16oz', 'serve_temp' => 'iced', 'size_option' => '16oz', 'price' => 195, 'stock_qty' => 22, 'threshold' => 5],
@@ -285,7 +285,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Crushed strawberry · velvety oat · floral matcha',
                 'is_perishable' => true,
                 'base_price' => 205,
-                'image_path' => 'assets/images/drinks/berry-matcha.jpg',
+                'image_path' => 'assets/images/drinks/tangadan-berry-matcha.jpg',
                 'is_featured' => true,
                 'variants' => [
                     ['code' => 'CI-LU-004-ICE', 'label' => 'Iced 16oz', 'serve_temp' => 'iced', 'size_option' => '16oz', 'price' => 205, 'stock_qty' => 18, 'threshold' => 5],
@@ -303,7 +303,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Roasted chestnut · cocoa husk · sweet cream',
                 'is_perishable' => true,
                 'base_price' => 190,
-                'image_path' => 'assets/images/drinks/spanish-hojicha.jpg',
+                'image_path' => 'assets/images/drinks/san-juan-spanish-hojicha.jpg',
                 'is_featured' => true,
                 'variants' => [
                     ['code' => 'CI-LU-005-HOT', 'label' => 'Hot 12oz', 'serve_temp' => 'hot', 'size_option' => '12oz', 'price' => 190, 'stock_qty' => 20, 'threshold' => 5],
@@ -323,7 +323,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Dark muscovado · toasted hazelnut · sea spray',
                 'is_perishable' => true,
                 'base_price' => 190,
-                'image_path' => 'assets/images/editorial/series-siargao.jpg',
+                'image_path' => 'assets/images/drinks/cloud-9-sea-salt-latte.jpg',
                 'is_featured' => true,
                 'variants' => [
                     ['code' => 'CI-SRG-006-HOT', 'label' => 'Hot 12oz', 'serve_temp' => 'hot', 'size_option' => '12oz', 'price' => 190, 'stock_qty' => 16, 'threshold' => 5],
@@ -341,7 +341,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Sparkling citrus · crisp botanicals · cacao crema',
                 'is_perishable' => true,
                 'base_price' => 185,
-                'image_path' => 'assets/images/editorial/series-siargao.jpg',
+                'image_path' => 'assets/images/drinks/kalamansi-espresso-tonic.jpg',
                 'is_featured' => false,
                 'variants' => [
                     ['code' => 'CI-SRG-007-ICE', 'label' => 'Iced 16oz', 'serve_temp' => 'iced', 'size_option' => '16oz', 'price' => 185, 'stock_qty' => 19, 'threshold' => 5],
@@ -358,7 +358,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Toasted coconut · dark chocolate · clean finish',
                 'is_perishable' => true,
                 'base_price' => 195,
-                'image_path' => 'assets/images/editorial/series-siargao.jpg',
+                'image_path' => 'assets/images/drinks/catangnan-coco-cold-brew.jpg',
                 'is_featured' => false,
                 'variants' => [
                     ['code' => 'CI-SRG-008-ICE', 'label' => 'Iced 16oz', 'serve_temp' => 'iced', 'size_option' => '16oz', 'price' => 195, 'stock_qty' => 21, 'threshold' => 5],
@@ -375,7 +375,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Bittersweet tablea · roasted nib · warm spice',
                 'is_perishable' => true,
                 'base_price' => 195,
-                'image_path' => 'assets/images/drinks/tablea-mocha.jpg',
+                'image_path' => 'assets/images/drinks/tablea-cacao-mocha.jpg',
                 'is_featured' => false,
                 'variants' => [
                     ['code' => 'CI-SRG-009-HOT', 'label' => 'Hot 12oz', 'serve_temp' => 'hot', 'size_option' => '12oz', 'price' => 195, 'stock_qty' => 18, 'threshold' => 5],
@@ -395,7 +395,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Creamy purple yam · vanilla bean · bright espresso',
                 'is_perishable' => true,
                 'base_price' => 190,
-                'image_path' => 'assets/images/editorial/series-boracay.jpg',
+                'image_path' => 'assets/images/drinks/halaya-dirty-ube-latte.jpg',
                 'is_featured' => true,
                 'variants' => [
                     ['code' => 'CI-BRC-010-DIRTY', 'label' => 'Iced 16oz (Dirty Espresso)', 'serve_temp' => 'iced', 'size_option' => '16oz', 'price' => 205, 'stock_qty' => 4, 'threshold' => 5],
@@ -413,7 +413,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Sweet garden pandan · coconut silk · floral vanilla',
                 'is_perishable' => true,
                 'base_price' => 195,
-                'image_path' => 'assets/images/editorial/menu-table-ritual.jpg',
+                'image_path' => 'assets/images/drinks/pandan-buko-cloud.jpg',
                 'is_featured' => false,
                 'variants' => [
                     ['code' => 'CI-BRC-011-ICE', 'label' => 'Iced 16oz', 'serve_temp' => 'iced', 'size_option' => '16oz', 'price' => 195, 'stock_qty' => 14, 'threshold' => 5],
@@ -430,7 +430,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Ripe mango · tangy passionfruit · crisp sea salt',
                 'is_perishable' => true,
                 'base_price' => 185,
-                'image_path' => 'assets/images/drinks/mango-fizz.jpg',
+                'image_path' => 'assets/images/drinks/golden-hour-mango-fizz.jpg',
                 'is_featured' => false,
                 'variants' => [
                     ['code' => 'CI-BRC-012-ICE', 'label' => 'Iced 16oz', 'serve_temp' => 'iced', 'size_option' => '16oz', 'price' => 185, 'stock_qty' => 23, 'threshold' => 5],
@@ -447,7 +447,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Jackfruit-smoke barako · sweet cream · Madagascar vanilla',
                 'is_perishable' => true,
                 'base_price' => 185,
-                'image_path' => 'assets/images/drinks/barako-tres.jpg',
+                'image_path' => 'assets/images/drinks/barako-tres-leches-latte.jpg',
                 'is_featured' => false,
                 'variants' => [
                     ['code' => 'CI-BRC-013-HOT', 'label' => 'Hot 12oz', 'serve_temp' => 'hot', 'size_option' => '12oz', 'price' => 185, 'stock_qty' => 17, 'threshold' => 5],
@@ -467,7 +467,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Botanical blue ternate · wildflower honey · zesty lime',
                 'is_perishable' => true,
                 'base_price' => 175,
-                'image_path' => 'assets/images/editorial/series-elnido.jpg',
+                'image_path' => 'assets/images/drinks/big-lagoon-butterfly-pea-limonada.jpg',
                 'is_featured' => true,
                 'variants' => [
                     ['code' => 'CI-ELN-014-ICE', 'label' => 'Iced 16oz', 'serve_temp' => 'iced', 'size_option' => '16oz', 'price' => 175, 'stock_qty' => 24, 'threshold' => 5],
@@ -484,7 +484,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Tart hibiscus · warm ginger snap · coastal lemongrass',
                 'is_perishable' => true,
                 'base_price' => 180,
-                'image_path' => 'assets/images/editorial/series-elnido.jpg',
+                'image_path' => 'assets/images/drinks/nacpan-hibiscus-ginger-cooler.jpg',
                 'is_featured' => false,
                 'variants' => [
                     ['code' => 'CI-ELN-015-ICE', 'label' => 'Iced 16oz', 'serve_temp' => 'iced', 'size_option' => '16oz', 'price' => 180, 'stock_qty' => 18, 'threshold' => 5],
@@ -501,7 +501,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Earthy turmeric · sweet cinnamon · comforting warmth',
                 'is_perishable' => true,
                 'base_price' => 180,
-                'image_path' => 'assets/images/drinks/golden-turmeric.jpg',
+                'image_path' => 'assets/images/drinks/palawan-golden-turmeric-latte.jpg',
                 'is_featured' => false,
                 'variants' => [
                     ['code' => 'CI-ELN-016-HOT', 'label' => 'Hot 12oz', 'serve_temp' => 'hot', 'size_option' => '12oz', 'price' => 180, 'stock_qty' => 15, 'threshold' => 5],
@@ -519,7 +519,7 @@ class DatabaseSeeder extends Seeder
                 'tasting_notes' => 'Juicy lychee · soft rose petal · delicate white tea',
                 'is_perishable' => true,
                 'base_price' => 185,
-                'image_path' => 'assets/images/drinks/lychee-rose.jpg',
+                'image_path' => 'assets/images/drinks/miniloc-lychee-rose-white-tea.jpg',
                 'is_featured' => false,
                 'variants' => [
                     ['code' => 'CI-ELN-017-ICE', 'label' => 'Iced 16oz', 'serve_temp' => 'iced', 'size_option' => '16oz', 'price' => 185, 'stock_qty' => 16, 'threshold' => 5],
