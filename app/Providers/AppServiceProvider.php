@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Mail\BrevoHttpTransport;
 use App\Mail\ResendHttpTransport;
 use App\Services\CartService;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -23,6 +24,12 @@ class AppServiceProvider extends ServiceProvider
             $apiKey = (string) ($config['key'] ?? config('services.resend.key') ?? '');
 
             return new ResendHttpTransport($apiKey);
+        });
+
+        Mail::extend('brevo', function (array $config = []) {
+            $apiKey = (string) ($config['key'] ?? config('services.brevo.key') ?? '');
+
+            return new BrevoHttpTransport($apiKey);
         });
 
         ResetPassword::createUrlUsing(fn ($user, string $token) => rtrim(config('app.url'), '/').route(
