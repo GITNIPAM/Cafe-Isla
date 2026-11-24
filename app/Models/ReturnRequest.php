@@ -17,6 +17,7 @@ class ReturnRequest extends Model
         'status',
         'restock_applied',
         'refund_amount',
+        'cod_adjustment',
         'processed_by',
         'admin_remarks',
     ];
@@ -26,6 +27,7 @@ class ReturnRequest extends Model
         return [
             'restock_applied' => 'boolean',
             'refund_amount' => 'decimal:2',
+            'cod_adjustment' => 'decimal:2',
         ];
     }
 

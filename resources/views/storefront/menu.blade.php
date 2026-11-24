@@ -15,6 +15,9 @@
     <section class="filter-toolbar" id="searchBox">
         <div class="container">
             <form method="GET" action="{{ route('menu.index') }}" class="filter-form">
+                @if(!empty($filters['category']))
+                    <input type="hidden" name="category" value="{{ $filters['category'] }}">
+                @endif
                 <div class="field-group">
                     <label for="q" class="field-label">Search Drinks or Merch</label>
                     <input type="text" id="q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Matcha, hojicha, ube, linen..." class="field-control">
@@ -46,6 +49,11 @@
                         <option value="hot" @selected(($filters['serve_temp'] ?? '') === 'hot')>Hot 12oz Available</option>
                         <option value="iced" @selected(($filters['serve_temp'] ?? '') === 'iced')>Iced 16oz / 20oz</option>
                     </select>
+                </div>
+
+                <div class="field-group">
+                    <label for="max_price" class="field-label">Max Price (₱)</label>
+                    <input type="number" id="max_price" name="max_price" value="{{ $filters['max_price'] ?? '' }}" min="0" step="0.01" placeholder="Any price" class="field-control">
                 </div>
 
                 <div class="field-group">

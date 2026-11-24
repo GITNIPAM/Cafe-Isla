@@ -45,6 +45,22 @@ class CafeIslaFlowTest extends TestCase
             ->assertSee('Monaliza Caramel Matcha')
             ->assertDontSee('Cloud 9 Sea Salt Latte');
 
+        $iced = ProductVariant::where('variant_code', 'CI-LU-001-ICE')->firstOrFail();
+        $hot = ProductVariant::where('variant_code', 'CI-LU-001-HOT')->firstOrFail();
+        $menuFilters = [
+            'q' => 'Urbiztondo Morning Matcha',
+            'category' => $iced->product->category->slug,
+            'serve_temp' => 'iced',
+            'max_price' => $iced->price,
+        ];
+        $this->get(route('menu.index', $menuFilters))->assertOk()
+            ->assertSee('name="category" value="'.$menuFilters['category'].'"', false)
+            ->assertSee('name="max_price"', false)
+            ->assertSee('data-quick-pour="'.$iced->id.'"', false)
+            ->assertDontSee('data-quick-pour="'.$hot->id.'"', false);
+        $this->get(route('menu.index', [...$menuFilters, 'max_price' => $hot->price]))
+            ->assertOk()->assertSee('No items matched those filters');
+
         $search = $this->get('/menu?q=Hojicha');
         $search->assertStatus(200)
             ->assertSee('San Juan Spanish Hojicha')
@@ -142,6 +158,7 @@ class CafeIslaFlowTest extends TestCase
             'delivery_zone' => 'local_express',
             'payment_method' => 'gcash',
             'payment_account_ref' => 'GCASH-9901',
+            'order_notes' => 'Call upon arrival',
         ]);
         $checkoutRes->assertRedirect('/account');
 
@@ -160,11 +177,14 @@ class CafeIslaFlowTest extends TestCase
         // Admin ships order -> logs shipping_update email
         $admin = User::where('email', 'admin@cafeisla.ph')->firstOrFail();
         $courier = User::where('email', 'rider@cafeisla.ph')->firstOrFail();
-        $this->actingAs($admin)->get('/admin?tab=orders')->assertSee('Half sweet, light ice');
+        $this->actingAs($admin)->get('/admin?tab=orders')
+            ->assertSee('Half sweet, light ice')->assertSee('Call upon arrival');
+        $this->patch('/admin/orders/'.$order->id, ['status' => 'confirmed'])->assertRedirect('/admin?tab=orders');
+        $this->patch('/admin/orders/'.$order->id, ['status' => 'preparing'])->assertRedirect('/admin?tab=orders');
         $this->actingAs($admin)->patch('/admin/orders/'.$order->id, [
             'status' => 'shipped',
+            'delivery_status' => 'assigned',
             'courier_user_id' => $courier->id,
-            'proof_notes' => 'Dispatched chilled',
         ])->assertRedirect('/admin?tab=orders');
 
         $this->assertDatabaseHas('email_logs', [
@@ -172,7 +192,12 @@ class CafeIslaFlowTest extends TestCase
             'event_type' => 'shipping_update',
         ]);
 
-        // Courier marks delivered
+        $this->actingAs($courier)->get('/admin')->assertSee('Call upon arrival');
+        $this->patch('/admin/orders/'.$order->id, [
+            'status' => 'shipped',
+            'delivery_status' => 'in_transit',
+            'proof_notes' => 'Dispatched chilled',
+        ])->assertRedirect('/admin?tab=orders');
         $this->actingAs($courier)->patch('/admin/orders/'.$order->id, [
             'status' => 'delivered',
             'proof_notes' => 'Handed to Aria',
@@ -187,10 +212,89 @@ class CafeIslaFlowTest extends TestCase
         ])->assertRedirect();
 
         $this->assertEquals('cancelled', $pendingOrder->fresh()->status);
+        $this->assertSame('0.00', $pendingOrder->payment->amount);
+        $this->assertSame('0.00', $pendingOrder->returnRequests()->sole()->refund_amount);
         $this->assertDatabaseHas('email_logs', [
             'order_id' => $pendingOrder->id,
             'event_type' => 'order_cancellation',
         ]);
+    }
+
+    public function test_registration_returns_to_checkout_with_the_guest_bag(): void
+    {
+        $variant = ProductVariant::where('variant_code', 'CI-LU-001-ICE')->firstOrFail();
+        $this->postJson('/cart/items', ['variant_id' => $variant->id, 'custom_notes' => 'Half sweet'])->assertOk();
+        $this->get('/checkout')->assertRedirect('/auth');
+
+        $this->post('/auth/register', [
+            'name' => 'New Checkout Customer',
+            'email' => 'first-order@example.com',
+            'password' => 'SecretIsla123!',
+            'password_confirmation' => 'SecretIsla123!',
+        ])->assertRedirect('/checkout');
+
+        $this->get('/checkout')->assertOk()->assertSee('Half sweet');
+    }
+
+    public function test_bag_preserves_different_instructions_when_adding_merging_and_editing(): void
+    {
+        $customer = User::where('email', 'customer@cafeisla.ph')->firstOrFail();
+        $variant = ProductVariant::where('variant_code', 'CI-LU-001-ICE')->firstOrFail();
+        $variant->update(['stock_qty' => 4]);
+
+        $add = ['variant_id' => $variant->id];
+        $this->actingAs($customer)->postJson('/cart/items', [...$add, 'custom_notes' => 'Half sweet'])->assertOk();
+        $this->post('/auth/logout')->assertRedirect('/');
+        $this->postJson('/cart/items', [...$add, 'custom_notes' => 'No ice'])->assertOk();
+        $this->postJson('/cart/items', $add)->assertOk()->assertJsonCount(2, 'summary.items');
+        $this->post('/auth/login', ['email' => $customer->email, 'password' => 'Isla2026!'])->assertRedirect('/account');
+
+        $bag = $this->getJson('/cart')->assertOk()->assertJsonCount(3, 'summary.items')
+            ->json('summary.items');
+        $halfSweet = collect($bag)->firstWhere('custom_notes', 'Half sweet');
+        $noIce = collect($bag)->firstWhere('custom_notes', 'No ice');
+        $this->get('/cart')->assertOk()->assertSee('Drink instructions')->assertSee('No ice');
+
+        $this->patchJson('/cart/items/'.$noIce['id'], ['quantity' => 2, 'custom_notes' => 'Light ice'])->assertOk()
+            ->assertJsonPath('summary.count', 4)
+            ->assertJsonFragment(['id' => $noIce['id'], 'custom_notes' => 'Light ice']);
+        $this->patchJson('/cart/items/'.$halfSweet['id'], ['quantity' => 2])->assertUnprocessable();
+        $this->postJson('/cart/items', [...$add, 'custom_notes' => 'Extra ice'])->assertUnprocessable();
+
+        $this->post('/checkout', [
+            'billing_name' => $customer->name,
+            'billing_email' => $customer->email,
+            'billing_phone' => '0917-555-0188',
+            'saved_address_id' => $customer->addresses()->where('delivery_zone', 'local_express')->firstOrFail()->id,
+            'delivery_zone' => 'local_express',
+            'payment_method' => 'cod',
+        ])->assertRedirect('/account');
+        $items = $customer->orders()->latest('id')->firstOrFail()->items;
+        $this->assertSame(4, $items->sum('quantity'));
+        $this->assertEqualsCanonicalizing(['Half sweet', 'Light ice', null], $items->pluck('custom_notes')->all());
+        $this->assertSame(0, $variant->fresh()->stock_qty);
+    }
+
+    public function test_admin_cancellation_restores_stock_and_refunds_once(): void
+    {
+        $admin = User::where('email', 'admin@cafeisla.ph')->firstOrFail();
+        $order = Order::where('order_number', 'CI-2026-1005')->firstOrFail();
+        $item = $order->items()->firstOrFail();
+        $originalStock = $item->variant->stock_qty;
+        $path = '/admin/orders/'.$order->id;
+
+        $this->actingAs($admin)->patch($path, ['status' => 'cancelled'])->assertRedirect('/admin?tab=orders');
+        $this->patch($path, ['status' => 'cancelled'])->assertSessionHas('error');
+
+        $order->refresh();
+        $this->assertSame('cancelled', $order->status);
+        $this->assertSame('failed', $order->delivery->status);
+        $this->assertNull($order->delivery->courier_user_id);
+        $this->assertSame($originalStock + $item->quantity, $item->variant->fresh()->stock_qty);
+        $this->assertSame('refunded', $order->payment->status);
+        $this->assertSame($order->grand_total, $order->payment->refunded_amount);
+        $this->assertSame($admin->id, $order->returnRequests()->sole()->processed_by);
+        $this->assertSame(1, $order->emailLogs()->where('event_type', 'order_cancellation')->count());
     }
 
     public function test_smart_return_restocks_merch_but_never_restocks_perishable_drinks(): void
@@ -214,11 +318,14 @@ class CafeIslaFlowTest extends TestCase
 
         // 2. New merch return on delivered Cap (non-perishable) -> MUST increment stock
         $order = Order::where('order_number', 'CI-2026-1003')->firstOrFail();
-        $this->actingAs($admin)->patch('/admin/orders/'.$order->id, ['status' => 'delivered']);
+        $this->actingAs($admin)->patch('/admin/orders/'.$order->id, ['status' => 'delivered'])
+            ->assertRedirect('/admin?tab=orders');
         $merchItem = $order->items()->where('is_perishable', false)->firstOrFail();
         $merchStockBefore = $merchItem->variant->stock_qty;
 
-        $this->actingAs($customer)->post('/account/orders/'.$order->id.'/return', [
+        $this->actingAs($customer)->get('/account')->assertOk()
+            ->assertSee(route('account.orders.return', $order), false);
+        $this->post('/account/orders/'.$order->id.'/return', [
             'order_item_id' => $merchItem->id,
             'request_type' => 'return',
             'reason' => 'Unworn cap return',
@@ -232,6 +339,97 @@ class CafeIslaFlowTest extends TestCase
 
         $this->assertTrue($merchReturn->fresh()->restock_applied);
         $this->assertEquals($merchStockBefore + $merchItem->quantity, $merchItem->variant->fresh()->stock_qty);
+        $this->assertSame($merchItem->line_total, $order->payment()->sole()->refunded_amount);
+        $this->assertSame('paid', $order->payment()->sole()->status);
+    }
+
+    public function test_discounted_item_refund_only_reduces_collected_revenue_by_its_net_price(): void
+    {
+        $admin = User::where('email', 'admin@cafeisla.ph')->firstOrFail();
+        $order = Order::where('order_number', 'CI-2026-1001')->firstOrFail();
+        $order->returnRequests()->delete();
+        $item = $order->items()->firstOrFail();
+        $expectedRefund = round((float) $item->line_total * 0.9, 2);
+        $revenue = $this->actingAs($admin)->get('/admin')->viewData('metrics')['revenue'];
+        $this->assertEqualsWithDelta(
+            (float) Order::whereIn('order_number', ['CI-2026-1001', 'CI-2026-1003', 'CI-2026-1005'])->sum('grand_total'),
+            $revenue,
+            0.001,
+        );
+
+        $this->actingAs($order->user)->post('/account/orders/'.$order->id.'/return', [
+            'order_item_id' => $item->id,
+            'request_type' => 'spill_refund',
+            'reason' => 'Both cups spilled',
+        ])->assertSessionHas('success');
+        $return = $order->returnRequests()->sole();
+        $this->assertEquals($expectedRefund, (float) $return->refund_amount);
+
+        $this->actingAs($admin)->post('/admin/returns/'.$return->id, ['decision' => 'approved'])->assertSessionHas('success');
+        $this->post('/admin/returns/'.$return->id, ['decision' => 'approved'])->assertSessionHas('error');
+
+        $this->assertSame('delivered', $order->fresh()->status);
+        $this->assertSame('paid', $order->payment->status);
+        $this->assertEquals($expectedRefund, (float) $order->payment->refunded_amount);
+        $this->assertEqualsWithDelta($revenue - $expectedRefund, $this->get('/admin')->viewData('metrics')['revenue'], 0.001);
+        $this->assertSame(1, $order->emailLogs()->where('event_type', 'return_update')->count());
+    }
+
+    public function test_returns_reduce_unpaid_cod_and_only_the_revised_amount_is_collected(): void
+    {
+        $admin = User::where('email', 'admin@cafeisla.ph')->firstOrFail();
+        $courier = User::where('email', 'rider@cafeisla.ph')->firstOrFail();
+        $order = Order::where('order_number', 'CI-2026-1004')->firstOrFail();
+        $order->update(['status' => 'shipped']);
+        $order->delivery->update(['status' => 'in_transit', 'courier_user_id' => $courier->id]);
+        $item = $order->items()->firstOrFail();
+        $credit = round((float) $item->line_total * 0.9, 2);
+        $remaining = round((float) $order->grand_total - $credit, 2);
+
+        $this->actingAs($order->user)->post('/account/orders/'.$order->id.'/return', [
+            'order_item_id' => $item->id,
+            'request_type' => 'spill_refund',
+            'reason' => 'One drink spilled',
+        ])->assertSessionHas('success');
+        $return = $order->returnRequests()->sole();
+
+        $this->actingAs($admin)->post('/admin/returns/'.$return->id, ['decision' => 'approved'])->assertSessionHas('success');
+        $this->assertEquals($credit, (float) $return->fresh()->cod_adjustment);
+        $this->assertSame('0.00', $return->fresh()->refund_amount);
+        $this->assertSame('pending', $order->payment->status);
+
+        $this->actingAs($courier)->get('/admin')->assertOk()->assertSee('Collect Cash (COD): ₱'.number_format($remaining, 2));
+        $this->patch('/admin/orders/'.$order->id, ['status' => 'delivered'])->assertSessionHas('success');
+        $this->assertSame('paid', $order->payment->fresh()->status);
+        $this->assertEquals($remaining, (float) $order->payment->fresh()->amount);
+    }
+
+    public function test_full_returns_credit_delivery_and_clear_unpaid_cod(): void
+    {
+        $admin = User::where('email', 'admin@cafeisla.ph')->firstOrFail();
+        $paid = Order::where('order_number', 'CI-2026-1003')->firstOrFail();
+        $cod = Order::where('order_number', 'CI-2026-1004')->firstOrFail();
+        $cod->update(['status' => 'shipped']);
+        $cod->delivery->update(['status' => 'in_transit']);
+
+        foreach ([$paid, $cod] as $order) {
+            $this->assertGreaterThan(0, (float) $order->delivery_fee);
+            $this->actingAs($order->user)->post('/account/orders/'.$order->id.'/return', [
+                'request_type' => 'return',
+                'reason' => 'Entire delivery returned',
+            ])->assertSessionHas('success');
+            $return = $order->returnRequests()->sole();
+            $this->assertSame($order->grand_total, $return->refund_amount);
+            $this->actingAs($admin)->post('/admin/returns/'.$return->id, ['decision' => 'approved'])->assertSessionHas('success');
+            $this->assertSame('returned', $order->fresh()->status);
+            $this->assertSame('failed', $order->delivery->fresh()->status);
+        }
+
+        $this->assertSame('refunded', $paid->payment->status);
+        $this->assertSame($paid->grand_total, $paid->payment->refunded_amount);
+        $this->assertSame($cod->grand_total, $cod->returnRequests()->sole()->cod_adjustment);
+        $this->assertSame('0.00', $cod->payment->amount);
+        $this->assertSame('0.00', $cod->payment->refunded_amount);
     }
 
     public function test_receipts_and_tracking_are_private_and_couriers_only_see_assigned_orders(): void
@@ -436,13 +634,23 @@ class CafeIslaFlowTest extends TestCase
     {
         $admin = User::where('email', 'admin@cafeisla.ph')->firstOrFail();
         $courier = User::where('email', 'rider@cafeisla.ph')->firstOrFail();
-        $order = Order::where('order_number', 'CI-2026-1003')->firstOrFail();
+        $order = Order::where('order_number', 'CI-2026-1004')->firstOrFail();
 
+        $this->actingAs($admin)->patch('/admin/orders/'.$order->id, ['status' => 'delivered'])
+            ->assertSessionHasErrors('status');
+        $this->assertSame('pending', $order->fresh()->status);
         $this->actingAs($admin)->patch('/admin/orders/'.$order->id, ['status' => 'confirmed'])->assertRedirect('/admin?tab=orders');
         $this->assertEquals('confirmed', $order->fresh()->status);
 
         $this->actingAs($admin)->patch('/admin/orders/'.$order->id, ['status' => 'preparing'])->assertRedirect('/admin?tab=orders');
         $this->assertEquals('preparing', $order->fresh()->status);
+
+        $inactiveCourier = User::factory()->create(['role' => 'courier', 'is_active' => false]);
+        $this->patch('/admin/orders/'.$order->id, [
+            'status' => 'shipped',
+            'delivery_status' => 'assigned',
+            'courier_user_id' => $inactiveCourier->id,
+        ])->assertSessionHasErrors('courier_user_id');
 
         $this->actingAs($admin)->patch('/admin/orders/'.$order->id, [
             'status' => 'shipped',
@@ -452,6 +660,8 @@ class CafeIslaFlowTest extends TestCase
         $this->assertEquals('shipped', $order->fresh()->status);
         $this->assertEquals('assigned', $order->fresh()->delivery->status);
 
+        $this->actingAs($courier)->patch('/admin/orders/'.$order->id, ['status' => 'delivered'])
+            ->assertSessionHasErrors('status');
         $this->actingAs($courier)->patch('/admin/orders/'.$order->id, [
             'status' => 'shipped',
             'delivery_status' => 'in_transit',
@@ -466,5 +676,6 @@ class CafeIslaFlowTest extends TestCase
         ])->assertRedirect('/admin?tab=orders');
         $this->assertEquals('delivered', $order->fresh()->status);
         $this->assertEquals('delivered', $order->fresh()->delivery->status);
+        $this->assertSame('paid', $order->payment()->sole()->status);
     }
 }

@@ -59,6 +59,14 @@ class Product extends Model
         return (int) $this->variants->where('is_active', true)->sum('stock_qty');
     }
 
+    public function displayVariant(): ?ProductVariant
+    {
+        $activeVariants = $this->variants->where('is_active', true);
+
+        return $activeVariants->first(fn (ProductVariant $variant) => $variant->stock_qty > 0)
+            ?? $activeVariants->first();
+    }
+
     public function hasLowStock(): bool
     {
         return $this->variants

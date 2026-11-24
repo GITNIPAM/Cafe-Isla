@@ -85,16 +85,37 @@ class Order extends Model
 
     public function nextCourierStatus(): ?string
     {
-        return match (true) {
-            $this->delivery?->status === 'assigned' && in_array($this->status, ['confirmed', 'preparing', 'shipped'], true) => 'shipped',
-            $this->delivery?->status === 'in_transit' && $this->status === 'shipped' => 'delivered',
+        if ($this->status !== 'shipped') {
+            return null;
+        }
+
+        return match ($this->delivery?->status) {
+            'assigned' => 'shipped',
+            'in_transit' => 'delivered',
             default => null,
         };
     }
 
     public function canRequestReturnByCustomer(): bool
     {
-        return in_array($this->status, ['delivered', 'shipped'], true)
-            && ! $this->returnRequests()->exists();
+        return $this->isReturnable() && $this->returnRequests->isEmpty();
+    }
+
+    public function isReturnable(): bool
+    {
+        return in_array($this->status, ['delivered', 'shipped'], true);
+    }
+
+    public function returnCredit(?OrderItem $item): float
+    {
+        if (! $item) {
+            return (float) $this->grand_total;
+        }
+
+        $lineTotal = (float) $item->line_total;
+        $subtotal = (float) $this->subtotal;
+        $discountShare = $subtotal > 0 ? round((float) $this->discount_amount * $lineTotal / $subtotal, 2) : 0.0;
+
+        return max(0.0, round($lineTotal - $discountShare, 2));
     }
 }

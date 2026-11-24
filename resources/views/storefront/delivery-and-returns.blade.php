@@ -19,6 +19,7 @@
             <p>Local Express costs ₱{{ number_format(\App\Services\CartService::LOCAL_EXPRESS_FEE) }} and nationwide parcel costs ₱{{ number_format(\App\Services\CartService::PROVINCIAL_PARCEL_FEE) }}. Delivery is free at ₱{{ number_format(\App\Services\CartService::FREE_DELIVERY_THRESHOLD) }} or more after discounts. Checkout shows your fee and total before you place the order.</p>
             <h2 class="ledger-panel__title">Cancellations and returns</h2>
             <p>You can cancel while an order is pending. For a shipped or delivered order, request a return or report a drink spill from <a href="{{ route('account.index') }}">your account</a>. Include the affected item and what happened so the team can review the request.</p>
+            <p>Item refunds reflect the price after its share of any order discount. Approved full-order returns include the original delivery fee. For unpaid Cash on Delivery orders, the approved amount reduces the balance due.</p>
         </div>
     </section>
 @endsection

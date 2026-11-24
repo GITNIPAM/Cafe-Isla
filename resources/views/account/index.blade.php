@@ -48,7 +48,10 @@
                                         </div>
                                         <div style="display:flex;gap:0.45rem;align-items:center;">
                                             <span class="status-tag status-tag--{{ $order->status }}">{{ strtoupper($order->status) }}</span>
-                                            <span class="status-tag">{{ $order->payment?->methodLabel() }} ({{ strtoupper($order->payment?->status ?? 'pending') }})</span>
+                                            <span class="status-tag">{{ $order->payment?->methodLabel() }} ({{ $order->payment?->statusLabel() ?? 'Pending' }})</span>
+                                            @if($order->payment?->amountToCollect() > 0)
+                                                <span class="status-tag">COD due: ₱{{ number_format($order->payment->amountToCollect(), 2) }}</span>
+                                            @endif
                                         </div>
                                     </div>
 
@@ -110,7 +113,12 @@
                                                     <span>
                                                         <strong>{{ strtoupper(str_replace('_', ' ', $ret->request_type)) }}</strong>: {{ $ret->reason }}
                                                         @if($ret->restock_applied)
-                                                            <em>(Merch restocked)</em>
+                                                            <em>(Stock restored)</em>
+                                                        @endif
+                                                        @if((float) $ret->cod_adjustment > 0)
+                                                            <br>COD reduced by ₱{{ number_format((float) $ret->cod_adjustment, 2) }}
+                                                        @elseif($ret->status === 'approved' && (float) $ret->refund_amount > 0)
+                                                            <br>Refund recorded: ₱{{ number_format((float) $ret->refund_amount, 2) }}
                                                         @endif
                                                     </span>
                                                     <span class="status-tag status-tag--{{ $ret->status }}">{{ strtoupper($ret->status) }}</span>
@@ -123,12 +131,12 @@
                                         @if($order->canBeCancelledByCustomer())
                                             <form method="POST" action="{{ route('account.orders.cancel', $order) }}" style="display:flex;gap:0.4rem;flex-wrap:wrap;width:100%;">
                                                 @csrf
-                                                <input type="text" name="reason" placeholder="Reason for cancelling before prep" class="field-control" style="flex:1;padding:0.42rem 0.65rem;">
+                                                <input type="text" name="reason" maxlength="200" aria-label="Reason for cancelling" placeholder="Reason for cancelling before prep" class="field-control" style="flex:1;padding:0.42rem 0.65rem;">
                                                 <button type="submit" class="tag-btn tag-btn--outline tag-btn--sm">Cancel Pending Order</button>
                                             </form>
                                         @endif
 
-                                        @if($order->status !== 'delivered' && $order->canRequestReturnByCustomer() && $order->returnRequests->isEmpty())
+                                        @if($order->canRequestReturnByCustomer())
                                             <details style="width:100%;border-top:1px solid var(--hairline);padding-top:0.65rem;">
                                                 <summary style="cursor:pointer;font-family:var(--font-sans);font-size:0.74rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">
                                                     Request Return / Refund
@@ -137,25 +145,25 @@
                                                     @csrf
                                                     <div class="form-row-2">
                                                         <div class="field-group">
-                                                            <label class="field-label">Item Covered</label>
-                                                            <select name="order_item_id" class="field-control">
+                                                            <label for="return-item-{{ $order->id }}" class="field-label">Item Covered</label>
+                                                            <select id="return-item-{{ $order->id }}" name="order_item_id" class="field-control">
                                                                 <option value="">Entire Order</option>
                                                                 @foreach($order->items as $item)
                                                                     <option value="{{ $item->id }}">
-                                                                        {{ $item->product_name_snapshot }} ({{ $item->is_perishable ? 'Drink · Refund Only' : 'Merch · Restock Return' }})
+                                                                        {{ $item->quantity }}&times; {{ $item->product_name_snapshot }} ({{ $item->variant_label_snapshot }})
                                                                     </option>
                                                                 @endforeach
                                                             </select>
                                                         </div>
                                                         <div class="field-group">
-                                                            <label class="field-label">Request Type</label>
-                                                            <select name="request_type" class="field-control" required>
+                                                            <label for="return-type-{{ $order->id }}" class="field-label">Request Type</label>
+                                                            <select id="return-type-{{ $order->id }}" name="request_type" class="field-control" required>
                                                                 <option value="return">Merch Return / Size Exchange</option>
                                                                 <option value="spill_refund">Refund Request</option>
                                                             </select>
                                                         </div>
                                                     </div>
-                                                    <input type="text" name="reason" required placeholder="Short reason (e.g. Sizing swap or damaged item)" class="field-control">
+                                                    <input type="text" name="reason" required maxlength="200" aria-label="Reason for requesting a return or refund" placeholder="Short reason (e.g. Sizing swap or damaged item)" class="field-control">
                                                     <button type="submit" class="tag-btn tag-btn--sm">Submit Request</button>
                                                 </form>
                                             </details>

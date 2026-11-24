@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
-use App\Models\ReturnRequest;
 use App\Models\UserAddress;
-use App\Services\DualChannelMailService;
+use App\Services\OrderReturnService;
+use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +13,7 @@ use Illuminate\View\View;
 
 class AccountController extends Controller
 {
-    public function __construct(protected DualChannelMailService $mailService) {}
+    public function __construct(protected OrderReturnService $orderReturns) {}
 
     public function index(Request $request): View
     {
@@ -90,51 +90,20 @@ class AccountController extends Controller
             abort(403);
         }
 
-        if (! $order->canBeCancelledByCustomer()) {
-            return back()->with('error', 'Only pending orders before barista preparation can be cancelled.');
+        $validated = $request->validate(['reason' => ['nullable', 'string', 'max:200']]);
+        try {
+            $this->orderReturns->cancel($order, $validated['reason'] ?? 'Customer cancelled prior to preparation');
+        } catch (DomainException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
-        $reason = trim((string) $request->input('reason', 'Customer cancelled prior to preparation'));
-
-        DB::transaction(function () use ($order, $request, $reason) {
-            foreach ($order->items as $item) {
-                $item->variant()->increment('stock_qty', $item->quantity);
-            }
-
-            $order->update(['status' => 'cancelled']);
-
-            if ($order->payment && $order->payment->status === 'paid') {
-                $order->payment->update([
-                    'status' => 'refunded',
-                    'refunded_at' => now(),
-                ]);
-            }
-
-            ReturnRequest::create([
-                'order_id' => $order->id,
-                'user_id' => $request->user()->id,
-                'request_type' => 'cancellation',
-                'reason' => $reason,
-                'status' => 'approved',
-                'restock_applied' => true,
-                'refund_amount' => $order->grand_total,
-                'admin_remarks' => 'Auto-approved cancellation prior to bar preparation.',
-            ]);
-        });
-
-        $this->mailService->sendOrderCancellation($order->fresh(), $reason);
-
-        return back()->with('success', 'Order #'.$order->order_number.' cancelled cleanly. Check your Inbox for confirmation.');
+        return back()->with('success', 'Order #'.$order->order_number.' cancelled. Check your Inbox for confirmation.');
     }
 
     public function requestReturn(Request $request, Order $order): RedirectResponse
     {
         if ($order->user_id !== $request->user()->id) {
             abort(403);
-        }
-
-        if (! $order->canRequestReturnByCustomer()) {
-            return back()->with('error', 'Returns or spill refunds can only be filed for shipped or delivered orders.');
         }
 
         $validated = $request->validate([
@@ -144,24 +113,32 @@ class AccountController extends Controller
             'details' => ['nullable', 'string', 'max:600'],
         ]);
 
-        $orderItem = null;
-        if (! empty($validated['order_item_id'])) {
-            $orderItem = $order->items()->findOrFail((int) $validated['order_item_id']);
+        $submitted = DB::transaction(function () use ($order, $validated) {
+            $order = Order::lockForUpdate()->findOrFail($order->id);
+            if (! $order->canRequestReturnByCustomer()) {
+                return false;
+            }
+
+            $orderItem = isset($validated['order_item_id'])
+                ? $order->items()->findOrFail($validated['order_item_id'])
+                : null;
+            $order->returnRequests()->create([
+                'order_item_id' => $orderItem?->id,
+                'user_id' => $order->user_id,
+                'request_type' => $validated['request_type'],
+                'reason' => $validated['reason'],
+                'details' => $validated['details'] ?? null,
+                'status' => 'pending',
+                'restock_applied' => false,
+                'refund_amount' => $order->returnCredit($orderItem),
+            ]);
+
+            return true;
+        }, 3);
+
+        if (! $submitted) {
+            return back()->with('error', 'A shipped or delivered order can have one return request.');
         }
-
-        $refundAmount = $orderItem ? (float) $orderItem->line_total : (float) $order->grand_total;
-
-        ReturnRequest::create([
-            'order_id' => $order->id,
-            'order_item_id' => $orderItem?->id,
-            'user_id' => $request->user()->id,
-            'request_type' => $validated['request_type'],
-            'reason' => $validated['reason'],
-            'details' => $validated['details'] ?? null,
-            'status' => 'pending',
-            'restock_applied' => false,
-            'refund_amount' => $refundAmount,
-        ]);
 
         return back()->with('success', 'Return / refund request submitted for review.');
     }

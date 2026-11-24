@@ -55,7 +55,7 @@
                 </a>
 
                 @auth
-                <button type="button" class="header-action-btn" data-open-inbox>
+                <button type="button" class="header-action-btn" data-open-inbox aria-haspopup="dialog" aria-controls="inboxDrawer">
                     <svg width="15" height="14" viewBox="0 0 16 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <rect x="1" y="1.5" width="14" height="11"/>
                         <path d="M1 2.5L8 8L15 2.5"/>
@@ -77,7 +77,7 @@
                     <a href="{{ route('auth.index') }}" class="header-action-btn">Sign In</a>
                 @endauth
 
-                <button type="button" class="header-action-btn" data-open-bag>
+                <button type="button" class="header-action-btn" data-open-bag aria-haspopup="dialog" aria-controls="bagDrawer">
                     <svg width="14" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <path d="M2 5H14L13 14.5H3L2 5Z"/>
                         <path d="M5.5 5V3.5C5.5 2.1 6.6 1 8 1C9.4 1 10.5 2.1 10.5 3.5V5"/>

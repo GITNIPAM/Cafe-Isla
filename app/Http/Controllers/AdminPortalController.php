@@ -6,12 +6,15 @@ use App\Models\Category;
 use App\Models\IslandSeries;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\ReturnRequest;
 use App\Models\ShopVisit;
 use App\Models\User;
 use App\Services\DualChannelMailService;
+use App\Services\OrderReturnService;
+use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -26,7 +29,10 @@ use League\Flysystem\FilesystemException;
 
 class AdminPortalController extends Controller
 {
-    public function __construct(protected DualChannelMailService $mailService) {}
+    public function __construct(
+        protected DualChannelMailService $mailService,
+        protected OrderReturnService $orderReturns,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -44,7 +50,9 @@ class AdminPortalController extends Controller
         }
 
         // Analytics Data (Admin)
-        $paidRevenue = (float) Order::whereNotIn('status', ['cancelled', 'returned'])->sum('grand_total');
+        $paidRevenue = (float) Payment::whereNotNull('paid_at')
+            ->whereIn('status', ['paid', 'refunded'])
+            ->sum(DB::raw('amount - refunded_amount'));
         $totalOrders = Order::count();
         $pendingOrdersCount = Order::whereIn('status', ['pending', 'confirmed', 'preparing'])->count();
         $lowStockVariants = ProductVariant::with('product.islandSeries')
@@ -340,73 +348,85 @@ class AdminPortalController extends Controller
         $user = $request->user();
         $isCourier = $user->role === 'courier';
         $validated = $request->validate([
-            'status' => ['required', 'in:pending,confirmed,preparing,shipped,delivered,cancelled'],
-            'delivery_status' => ['nullable', 'in:unassigned,assigned,in_transit,delivered'],
-            'courier_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'status' => ['required', 'in:confirmed,preparing,shipped,delivered,cancelled'],
+            'delivery_status' => ['nullable', 'in:assigned,in_transit,delivered'],
+            'courier_user_id' => ['nullable', 'integer'],
             'proof_notes' => ['nullable', 'string', 'max:255'],
         ]);
 
         $newStatus = $validated['status'];
-        $delivery = $order->delivery;
-        if ($isCourier) {
-            abort_unless($delivery && (int) $delivery->courier_user_id === $user->id, 403);
-            if (! in_array($newStatus, ['shipped', 'delivered'], true)) {
-                abort(403, 'Couriers can only mark orders In Transit or Delivered.');
+        if ($newStatus === 'cancelled') {
+            abort_if($isCourier, 403);
+            try {
+                $this->orderReturns->cancel($order, 'The café cancelled this order before preparation.', $user);
+            } catch (DomainException $e) {
+                return redirect()->route('admin.index', ['tab' => 'orders'])->with('error', $e->getMessage());
             }
+
+            return redirect()->route('admin.index', ['tab' => 'orders'])
+                ->with('success', 'Order #'.$order->order_number.' cancelled. The customer was notified.');
         }
-        $shouldNotify = false;
 
-        DB::transaction(function () use ($order, $delivery, $validated, $newStatus, $user, &$shouldNotify) {
-            $oldStatus = $order->status;
-            $order->update(['status' => $newStatus]);
+        [$order, $deliveryStatus] = DB::transaction(function () use ($order, $validated, $newStatus, $user, $isCourier) {
+            $order = Order::lockForUpdate()->findOrFail($order->id);
+            $delivery = $order->delivery;
+            if ($isCourier) {
+                abort_unless((int) $delivery?->courier_user_id === $user->id, 403);
+                abort_unless(in_array($newStatus, ['shipped', 'delivered'], true), 403);
+            }
 
-            if ($delivery) {
-                $deliveryUpdate = [];
-                if (! empty($validated['courier_user_id'])) {
-                    $deliveryUpdate['courier_user_id'] = (int) $validated['courier_user_id'];
-                    if ($delivery->status === 'unassigned') {
-                        $deliveryUpdate['status'] = 'assigned';
-                    }
-                } elseif ($newStatus === 'shipped' && empty($delivery->courier_user_id)) {
-                    $fallbackCourier = User::where('role', 'courier')->where('is_active', true)->value('id');
-                    if ($fallbackCourier) {
-                        $deliveryUpdate['courier_user_id'] = $fallbackCourier;
-                    }
+            $deliveryStatus = match ([$order->status, $newStatus]) {
+                ['pending', 'confirmed'], ['confirmed', 'preparing'] => null,
+                ['preparing', 'shipped'] => 'assigned',
+                ['shipped', 'shipped'] => $order->nextCourierStatus() === 'shipped' ? 'in_transit' : false,
+                ['shipped', 'delivered'] => $order->nextCourierStatus() === 'delivered' ? 'delivered' : false,
+                default => false,
+            };
+
+            if ($deliveryStatus === false
+                || ($deliveryStatus && ! $delivery)
+                || ($isCourier && $order->nextCourierStatus() !== $newStatus)
+                || (isset($validated['delivery_status']) && $validated['delivery_status'] !== $deliveryStatus)) {
+                throw ValidationException::withMessages(['status' => 'Use the next available fulfillment step for this order.']);
+            }
+
+            $deliveryUpdate = [];
+            if ($deliveryStatus === 'assigned') {
+                $courierId = $validated['courier_user_id'] ?? $delivery->courier_user_id;
+                if (! $courierId || ! User::whereKey($courierId)->where('role', 'courier')->where('is_active', true)->exists()) {
+                    throw ValidationException::withMessages(['courier_user_id' => 'Choose an active courier to ship this order.']);
                 }
+                $deliveryUpdate['courier_user_id'] = $courierId;
+            } elseif (isset($validated['courier_user_id'])) {
+                throw ValidationException::withMessages(['courier_user_id' => 'A courier is assigned when the order ships.']);
+            }
 
-                if (array_key_exists('proof_notes', $validated) && $validated['proof_notes'] !== null && $validated['proof_notes'] !== '') {
-                    $deliveryUpdate['proof_notes'] = $validated['proof_notes'];
-                }
-
-                if ($newStatus === 'shipped') {
-                    $deliveryUpdate['status'] = $validated['delivery_status'] ?? 'in_transit';
-                    if ($deliveryUpdate['status'] === 'in_transit') {
-                        $deliveryUpdate['shipped_at'] = $delivery->shipped_at ?? now();
-                    }
-                    $shouldNotify = true;
-                } elseif ($newStatus === 'delivered') {
-                    $deliveryUpdate['status'] = 'delivered';
+            if ($deliveryStatus) {
+                $deliveryUpdate['status'] = $deliveryStatus;
+                if ($deliveryStatus === 'in_transit') {
+                    $deliveryUpdate['shipped_at'] = $delivery->shipped_at ?? now();
+                } elseif ($deliveryStatus === 'delivered') {
                     $deliveryUpdate['delivered_at'] = now();
-                    if ($order->payment && $order->payment->method === 'cod' && $order->payment->status === 'pending') {
+                    if ($order->payment?->amountToCollect() > 0) {
                         $order->payment->update(['status' => 'paid', 'paid_at' => now()]);
                     }
-                    $shouldNotify = true;
-                } elseif ($newStatus !== $oldStatus && in_array($newStatus, ['confirmed', 'preparing'], true)) {
-                    $shouldNotify = true;
-                }
-
-                if (! empty($deliveryUpdate)) {
-                    $delivery->update($deliveryUpdate);
                 }
             }
-        });
+            if (isset($validated['proof_notes'])) {
+                $deliveryUpdate['proof_notes'] = $validated['proof_notes'];
+            }
+            if ($deliveryUpdate && $delivery) {
+                $delivery->update($deliveryUpdate);
+            }
+            $order->update(['status' => $newStatus]);
 
-        if ($shouldNotify) {
-            $this->mailService->sendShippingUpdate($order->fresh(['delivery.courier', 'items', 'payment']));
-        }
+            return [$order, $deliveryStatus];
+        }, 3);
+
+        $this->mailService->sendShippingUpdate($order->loadMissing('delivery.courier'));
 
         $stageLabel = match ($newStatus) {
-            'shipped' => ($validated['delivery_status'] ?? null) === 'assigned' ? 'Shipped (Courier Assigned)' : 'Courier Tracking (In Transit)',
+            'shipped' => $deliveryStatus === 'assigned' ? 'Shipped (Courier Assigned)' : 'Courier Tracking (In Transit)',
             'delivered' => 'Delivered (Courier Confirmed)',
             default => ucfirst($newStatus),
         };
@@ -421,51 +441,11 @@ class AdminPortalController extends Controller
             'admin_remarks' => ['nullable', 'string', 'max:500'],
         ]);
 
-        if ($returnRequest->status !== 'pending') {
-            return redirect()->route('admin.index', ['tab' => 'returns'])->with('info', 'This return request has already been processed.');
+        try {
+            $this->orderReturns->process($returnRequest, $request->user(), $validated['decision'], $validated['admin_remarks'] ?? null);
+        } catch (DomainException $e) {
+            return redirect()->route('admin.index', ['tab' => 'returns'])->with('error', $e->getMessage());
         }
-
-        DB::transaction(function () use ($request, $returnRequest, $validated) {
-            $order = $returnRequest->order;
-            $restocked = false;
-
-            if ($validated['decision'] === 'approved') {
-                if ($returnRequest->orderItem) {
-                    $item = $returnRequest->orderItem;
-                    if (! $item->is_perishable && $item->variant) {
-                        $item->variant->increment('stock_qty', $item->quantity);
-                        $restocked = true;
-                    }
-                } else {
-                    foreach ($order->items as $item) {
-                        if (! $item->is_perishable && $item->variant) {
-                            $item->variant->increment('stock_qty', $item->quantity);
-                            $restocked = true;
-                        }
-                    }
-                }
-
-                if ($order->payment) {
-                    $order->payment->update([
-                        'status' => 'refunded',
-                        'refunded_at' => now(),
-                    ]);
-                }
-
-                if (! $returnRequest->orderItem || $order->items->count() === 1) {
-                    $order->update(['status' => 'returned']);
-                }
-            }
-
-            $returnRequest->update([
-                'status' => $validated['decision'],
-                'restock_applied' => $restocked,
-                'processed_by' => $request->user()->id,
-                'admin_remarks' => $validated['admin_remarks'] ?? ($restocked ? 'Approved & non-perishable Isla Merch restocked.' : 'Approved beverage refund without restock.'),
-            ]);
-        });
-
-        $this->mailService->sendReturnUpdate($returnRequest->fresh(['order', 'orderItem']));
 
         return redirect()->route('admin.index', ['tab' => 'returns'])->with('success', 'Return #'.$returnRequest->id.' marked '.ucfirst($validated['decision']).'.');
     }

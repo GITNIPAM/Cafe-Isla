@@ -60,27 +60,37 @@
   // 5. Slide-Over Drawers (Shopping Bag + Live Email Inbox)
   const bagDrawer = document.getElementById('bagDrawer');
   const inboxDrawer = document.getElementById('inboxDrawer');
+  let activeDrawer;
+  let drawerOpener;
+  let inertBackground = [];
 
-  function openDrawer(drawer) {
-    if (!drawer) return;
+  function openDrawer(drawer, opener) {
+    if (!drawer || activeDrawer === drawer) return;
+    closeDrawer();
+    activeDrawer = drawer;
+    drawerOpener = opener;
     drawer.classList.add('is-open');
     drawer.setAttribute('aria-hidden', 'false');
+    drawer.querySelector('[data-close-drawer]').focus();
+    inertBackground = Array.from(document.body.children)
+      .filter((element) => element !== drawer && !element.inert);
+    inertBackground.forEach((element) => { element.inert = true; });
   }
 
-  function closeDrawers() {
-    [bagDrawer, inboxDrawer].forEach((d) => {
-      if (d) {
-        d.classList.remove('is-open');
-        d.setAttribute('aria-hidden', 'true');
-      }
-    });
+  function closeDrawer() {
+    if (!activeDrawer) return;
+    inertBackground.forEach((element) => { element.inert = false; });
+    drawerOpener?.focus();
+    activeDrawer.classList.remove('is-open');
+    activeDrawer.setAttribute('aria-hidden', 'true');
+    activeDrawer = null;
   }
 
   document.querySelectorAll('[data-open-bag]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       refreshBagDrawer();
-      openDrawer(bagDrawer);
+      openDrawer(bagDrawer, btn);
     });
   });
 
@@ -88,23 +98,38 @@
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       refreshInboxDrawer();
-      openDrawer(inboxDrawer);
+      openDrawer(inboxDrawer, btn);
     });
   });
 
   document.querySelectorAll('[data-close-drawer]').forEach((btn) => {
-    btn.addEventListener('click', closeDrawers);
+    btn.addEventListener('click', closeDrawer);
   });
 
   [bagDrawer, inboxDrawer].forEach((backdrop) => {
     if (!backdrop) return;
     backdrop.addEventListener('click', (e) => {
-      if (e.target === backdrop) closeDrawers();
+      if (e.target === backdrop) closeDrawer();
     });
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeDrawers();
+    if (!activeDrawer) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeDrawer();
+    }
+    if (e.key !== 'Tab') return;
+
+    const focusable = Array.from(activeDrawer.querySelectorAll('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)'))
+      .filter((element) => element.getClientRects().length > 0);
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (!focusable.includes(document.activeElement)
+      || (e.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+      e.preventDefault();
+      (e.shiftKey ? last : first)?.focus();
+    }
   });
 
   // 6. Persistent Bag API + DOM Sync
@@ -129,9 +154,22 @@
     const footerEl = document.getElementById('bagDrawerFooter');
     if (!bodyEl || !footerEl) return;
 
+    const focusedControl = bagDrawer.contains(document.activeElement) ? document.activeElement : null;
+    const focusedItemId = focusedControl?.dataset.bagQty ?? focusedControl?.dataset.bagRemove;
+    const restoreFocus = () => {
+      if (!focusedControl || focusedControl.isConnected) return;
+
+      const matchingItemControl = Array.from(bodyEl.querySelectorAll('[data-bag-qty]')).find((control) =>
+        control.dataset.bagQty === focusedItemId && control.getAttribute('aria-label') === focusedControl.getAttribute('aria-label'));
+      const matchingLink = Array.from(footerEl.querySelectorAll('a')).find((link) =>
+        link.getAttribute('href') === focusedControl.getAttribute('href'));
+      (matchingItemControl ?? matchingLink ?? bagDrawer.querySelector('[data-close-drawer]')).focus();
+    };
+
     if (!summary.items || summary.items.length === 0) {
       bodyEl.innerHTML = '<div style="padding:2rem 0;text-align:center;"><p style="font-family:var(--font-serif);font-style:italic;font-size:1.25rem;margin:0 0 0.75rem 0;">Your bag is currently resting.</p><p style="font-family:var(--font-mono);font-size:0.82rem;color:var(--taupe-muted);">Explore our four Island Series pours or coastal Isla Merch to start an order.</p></div>';
       footerEl.innerHTML = '<a href="/menu" class="tag-btn tag-btn--canopy" style="width:100%;">Explore Menu &amp; Merch</a>';
+      restoreFocus();
       return;
     }
 
@@ -145,6 +183,7 @@
           </div>
           <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--taupe-muted);margin:0.15rem 0 0.45rem 0;">
             ${escapeHtml(item.island_name)} &middot; ${escapeHtml(item.variant_label)}
+            ${item.custom_notes ? `<br>Note: ${escapeHtml(item.custom_notes)}` : ''}
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <div class="qty-stepper">
@@ -184,6 +223,7 @@
     `;
 
     bindBagItemControls();
+    restoreFocus();
   }
 
   async function refreshBagDrawer() {
@@ -257,7 +297,7 @@
         const data = await res.json();
         if (data.ok && data.summary) {
           renderBagSummary(data.summary);
-          openDrawer(bagDrawer);
+          openDrawer(bagDrawer, btn);
         } else {
           alert(data.message || 'Could not add item to bag.');
         }

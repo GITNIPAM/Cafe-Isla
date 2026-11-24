@@ -893,6 +893,7 @@ class DatabaseSeeder extends Seeder
                 'method' => $def['payment_method'],
                 'reference_number' => 'PAY-'.strtoupper(substr(md5($def['order_number']), 0, 8)),
                 'amount' => $grandTotal,
+                'refunded_amount' => $def['payment_status'] === 'refunded' ? $grandTotal : 0,
                 'status' => $def['payment_status'],
                 'paid_at' => in_array($def['payment_status'], ['paid', 'refunded']) ? $def['placed_at'] : null,
                 'refunded_at' => $def['payment_status'] === 'refunded' ? $def['placed_at']->copy()->addHours(4) : null,
