@@ -273,7 +273,7 @@
     const bodyEl = document.getElementById('inboxDrawerBody');
     if (!bodyEl) return;
     try {
-      const res = await fetch('/inbox', { headers: { 'Accept': 'application/json' } });
+      const res = await fetch(inboxDrawer.dataset.inboxUrl, { headers: { 'Accept': 'application/json' } });
       const data = await res.json();
       if (!data.emails || data.emails.length === 0) {
         bodyEl.innerHTML = '<p style="font-family:var(--font-mono);font-size:0.84rem;color:var(--taupe-muted);">No transactional notices recorded yet. Complete an order or shipping update to inspect rendered confirmation emails here.</p>';

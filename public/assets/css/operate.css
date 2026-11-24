@@ -359,3 +359,32 @@
     grid-template-columns: 1fr;
   }
 }
+.checkout-address-fields {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+}
+
+.checkout-address-fields[hidden] {
+    display: none;
+}
+
+[data-quote-discount-row]:not([hidden]) {
+    display: flex;
+    justify-content: space-between;
+    color: #f2b8a9;
+}
+
+[data-quote-status]:empty {
+    display: none;
+}
+
+.support-panel {
+    max-width: 44rem;
+    margin-inline: auto;
+}
+
+.support-panel a {
+    text-decoration: underline;
+}

@@ -170,7 +170,12 @@
                                     <td>
                                         <ul style="margin:0;padding-left:1rem;font-size:0.82rem;">
                                             @foreach($order->items as $item)
-                                                <li>{{ $item->quantity }}&times; {{ $item->product_name_snapshot }} ({{ $item->variant_label_snapshot }})</li>
+                                                <li>
+                                                    {{ $item->quantity }}&times; {{ $item->product_name_snapshot }} ({{ $item->variant_label_snapshot }})
+                                                    @if($role !== 'courier' && $item->custom_notes)
+                                                        <br><strong>Prep note</strong> {{ $item->custom_notes }}
+                                                    @endif
+                                                </li>
                                             @endforeach
                                         </ul>
                                         <div class="tabular" style="font-family:var(--font-mono);font-weight:700;margin-top:0.35rem;">
@@ -185,14 +190,15 @@
                                         </div>
                                     </td>
                                     <td style="min-width:250px;">
+                                        @php
+                                            $courierNextStatus = $order->nextCourierStatus();
+                                        @endphp
+                                        @if($role !== 'courier' || $courierNextStatus)
                                         <form method="POST" action="{{ route('admin.orders.update', $order) }}" class="form-stack" style="gap:0.45rem;">
                                             @csrf
                                             @method('PATCH')
                                             @if($role === 'courier')
-                                                <select name="status" class="field-control">
-                                                    <option value="shipped" @selected($order->status === 'shipped')>In Transit (Picked Up)</option>
-                                                    <option value="delivered" @selected($order->status === 'delivered')>Delivered to Recipient</option>
-                                                </select>
+                                                <input type="hidden" name="status" value="{{ $courierNextStatus }}">
                                             @else
                                                 <select name="status" class="field-control">
                                                     @foreach(['pending', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled'] as $st)
@@ -207,8 +213,9 @@
                                                 </select>
                                             @endif
                                             <input type="text" name="proof_notes" value="{{ $order->delivery?->proof_notes }}" placeholder="Rider / handoff note" class="field-control">
-                                            <button type="submit" class="tag-btn tag-btn--canopy tag-btn--sm">Update &amp; Email Notice</button>
+                                            <button type="submit" class="tag-btn tag-btn--canopy tag-btn--sm">{{ $role !== 'courier' ? 'Update & Email Notice' : ($courierNextStatus === 'shipped' ? 'Mark In Transit' : 'Mark Delivered') }}</button>
                                         </form>
+                                        @endif
                                     </td>
                                 </tr>
                             @endforeach

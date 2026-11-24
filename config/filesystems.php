@@ -47,6 +47,12 @@ return [
             'report' => false,
         ],
 
+        'catalog_uploads' => [
+            'driver' => 'local',
+            'root' => env('CAFE_ISLA_UPLOAD_DIR') ?: public_path('uploads/products'),
+            'throw' => true,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

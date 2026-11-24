@@ -7,7 +7,7 @@
         <div class="container">
             <h1 class="page-intro__title">Account &amp; Role Portal</h1>
             <p class="page-intro__lead">
-                Register securely with bcrypt password verification or sign in with one of the pre-seeded demonstration roles below.
+                Sign in to your Café Isla account or create one to place and track orders.
             </p>
         </div>
     </section>
@@ -33,6 +33,9 @@
                     <button type="submit" class="tag-btn tag-btn--canopy">Sign In to Café Isla</button>
                 </form>
 
+                <p><a href="{{ route('password.request') }}">Forgot your password?</a></p>
+
+                @if(config('cafeisla.demo_mode'))
                 <div class="demo-cred-box">
                     <div class="field-label">One-Click Role Autofill (Password: Isla2026!)</div>
                     <button type="button" class="demo-cred-btn" data-demo-email="customer@cafeisla.ph" data-demo-pass="Isla2026!">
@@ -52,6 +55,7 @@
                         <span>rider@cafeisla.ph</span>
                     </button>
                 </div>
+                @endif
             </div>
 
             <div class="ledger-panel">

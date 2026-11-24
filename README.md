@@ -18,18 +18,29 @@ Full-stack specialty Philippine island café and coastal lifestyle e-commerce pl
 ## Local Setup (XAMPP PHP 8.2+ & MySQL)
 
 1. Start **Apache** and **MySQL** in XAMPP Control Panel (`cafe_isla_db` created on `127.0.0.1:3306`, user `root`, empty password).
-2. Migrate and seed all 16 normalized domain tables:
+2. From a new checkout, run `composer install`, copy `.env.example` to `.env`, and run `C:\xampp\php\php.exe artisan key:generate`. Set `APP_URL` to the address used to open the site so password reset links reach the correct host.
+3. Apply migrations to an existing database with `C:\xampp\php\php.exe artisan migrate`. For a new, empty demo database, migrate and seed with:
    ```powershell
-   C:\xampp\php\php.exe artisan migrate:fresh --seed
+   C:\xampp\php\php.exe artisan migrate --seed
    ```
-3. Launch the local server:
+4. Launch the local server:
    ```powershell
    C:\xampp\php\php.exe artisan serve --host=127.0.0.1 --port=8000
    ```
-4. Run automated feature tests:
+5. Run automated feature tests:
    ```powershell
    C:\xampp\php\php.exe artisan test
    ```
+
+The GitHub **Café Isla checks** workflow runs on PRs to `main` and pushes to `main`. To require it before a merge, add both `Laravel tests` checks to the `main` branch ruleset in GitHub.
+
+### Demo checkout and customer help
+
+- `CAFE_ISLA_DEMO_MODE=true` enables demo credentials, seed data, and the diagrams. Use a separate empty database for a public deployment and keep demo mode off there.
+- `CAFE_ISLA_LOCAL_DELIVERY_AREAS` is a semicolon-separated list of city and province pairs. The class demo covers `Dasmariñas, Cavite;San Juan, La Union`.
+- GCash and Maya/card checkout and refunds are simulated. `MAIL_MAILER=log` writes mail—including reset links—to the local Laravel log. Use sample addresses and account details during the defense.
+- Newsletter signups record explicit consent. Confirm the contact mailbox, customer policies, live payments, and email delivery before accepting real orders or sending campaigns.
+- Catalog images are stored in `public/uploads/products` by default. If PHP cannot write there on Windows, set `CAFE_ISLA_UPLOAD_DIR` to an absolute writable directory. Existing catalog image URLs stay the same.
 
 ---
 

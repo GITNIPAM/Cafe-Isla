@@ -14,6 +14,7 @@ class OrderItem extends Model
         'product_variant_id',
         'product_name_snapshot',
         'variant_label_snapshot',
+        'custom_notes',
         'is_perishable',
         'quantity',
         'unit_price',
