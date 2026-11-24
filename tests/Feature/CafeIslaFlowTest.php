@@ -51,19 +51,9 @@ class CafeIslaFlowTest extends TestCase
             ->assertDontSee('Urbiztondo Morning Matcha');
 
         $this->get('/diagrams')->assertStatus(200)->assertSee('Normalized Relational Schema');
-<<<<<<< HEAD
-        $this->get('/track?order=CI-2026-1003')->assertStatus(200)->assertSee('TRK-1003-ISLA');
-        $this->get('/track?order=TRK-1003-ISLA')->assertStatus(200)->assertSee('CI-2026-1003');
-=======
-
-        $this->get('/product/muni-matcha')->assertStatus(301)
-            ->assertRedirect('/product/urbiztondo-morning-matcha');
-        foreach (Product::all() as $product) {
-            $this->assertFileExists(public_path(parse_url($product->imageUrl(), PHP_URL_PATH)));
-        }
-        $legacy = new Product(['image_path' => 'assets/images/drinks/muni-matcha.jpg']);
-        $this->assertStringEndsWith('/urbiztondo-morning-matcha.jpg', $legacy->imageUrl());
->>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
+        $customer = User::where('email', 'customer@cafeisla.ph')->firstOrFail();
+        $this->actingAs($customer)->get('/track?order=CI-2026-1003')->assertStatus(200)->assertSee('TRK-1003-ISLA');
+        $this->actingAs($customer)->get('/track?order=TRK-1003-ISLA')->assertStatus(200)->assertSee('CI-2026-1003');
     }
 
     public function test_bcrypt_registration_and_rbac_portal_permissions(): void

@@ -132,24 +132,17 @@ class StorefrontController extends Controller
 
     public function track(Request $request): View
     {
-<<<<<<< HEAD
         $orderNumber = trim((string) $request->query('order', ''));
         $lookup = strtoupper(ltrim($orderNumber, '#'));
         $order = null;
 
         if ($lookup !== '') {
-            $order = Order::with(['items', 'payment', 'delivery.courier', 'returnRequests'])
-                ->whereRaw('UPPER(order_number) = ?', [$lookup])
-                ->orWhereHas('delivery', fn ($q) => $q->whereRaw('UPPER(tracking_number) = ?', [$lookup]))
-=======
-        $orderQuery = $request->query('order', '');
-        $orderNumber = is_string($orderQuery) ? trim($orderQuery) : '';
-        $order = null;
-
-        if ($orderNumber !== '') {
-            $order = $request->user()->orders()->with(['items', 'delivery.courier'])
-                ->whereRaw('UPPER(order_number) = ?', [strtoupper($orderNumber)])
->>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
+            $order = $request->user()->orders()
+                ->with(['items', 'payment', 'delivery.courier', 'returnRequests'])
+                ->where(function ($query) use ($lookup) {
+                    $query->whereRaw('UPPER(order_number) = ?', [$lookup])
+                        ->orWhereHas('delivery', fn ($q) => $q->whereRaw('UPPER(tracking_number) = ?', [$lookup]));
+                })
                 ->first();
         }
 
