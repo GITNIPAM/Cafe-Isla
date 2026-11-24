@@ -223,8 +223,12 @@
 
 .form-row-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.85rem;
+}
+
+.form-row-2 > * {
+  min-width: 0;
 }
 
 .demo-cred-box {
@@ -259,6 +263,8 @@
   display: flex;
   align-items: stretch;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 1px solid var(--espresso-ink);
   background-color: var(--bg-paper-bright);
 }

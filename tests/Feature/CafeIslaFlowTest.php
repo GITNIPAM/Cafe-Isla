@@ -343,18 +343,12 @@ class CafeIslaFlowTest extends TestCase
         $this->get('/diagrams')->assertNotFound();
     }
 
-    public function test_password_reset_uses_a_one_time_email_link(): void
+    public function test_forgot_password_is_removed_and_auth_renders_create_account_toggle(): void
     {
-        Notification::fake();
-        $user = User::factory()->create(['is_active' => true]);
-        $this->get('/forgot-password')->assertOk();
-        $this->from('/forgot-password')->post('/forgot-password', ['email' => $user->email])->assertSessionHas('info');
-        $token = Notification::sent($user, ResetPassword::class)->sole()->token;
-        $this->get(route('password.reset', ['token' => $token, 'email' => $user->email]))->assertOk();
-        $fields = ['email' => $user->email, 'token' => $token, 'password' => 'ChangedPassword28!', 'password_confirmation' => 'ChangedPassword28!'];
-        $this->post('/reset-password', $fields)->assertRedirect('/auth');
-        $this->assertTrue(Hash::check('ChangedPassword28!', $user->fresh()->password));
-        $this->post('/reset-password', $fields)->assertSessionHasErrors('email');
+        $this->get('/forgot-password')->assertNotFound();
+        $this->get('/auth')->assertOk()
+            ->assertSee('Create New Account')
+            ->assertDontSee('Forgot your password?');
     }
 
     public function test_admin_can_upload_product_image_and_create_item(): void

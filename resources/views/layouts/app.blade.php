@@ -8,7 +8,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Courier+Prime:wght@400;700&family=Libre+Caslon+Display&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Pinyon+Script&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('assets/css/isla.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/operate.css') }}">
     @stack('styles')
@@ -27,10 +27,9 @@
     <header class="site-header">
         <div class="site-header__inner">
             <a href="{{ route('home') }}" class="brand-lockup" aria-label="Café Isla Home">
-                @include('partials.logo-seal', ['size' => 52, 'class' => 'brand-lockup__seal'])
+                @include('partials.logo-seal', ['size' => 54, 'class' => 'brand-lockup__seal'])
                 <span class="brand-lockup__text">
-                    <span class="brand-lockup__script">Café Isla</span>
-                    <span class="brand-lockup__tagline">Slow sips from the archipelago</span>
+                    <span class="brand-lockup__script">Café Isla<span class="brand-lockup__dot" aria-hidden="true">.</span></span>
                 </span>
             </a>
 
@@ -126,8 +125,11 @@
         <div class="container">
             <div class="footer-grid">
                 <div>
-                    <div style="margin-bottom:0.9rem;">
-                        @include('partials.logo-seal', ['size' => 68, 'dark' => true])
+                    <div class="brand-lockup brand-lockup--footer" style="margin-bottom:0.95rem;">
+                        @include('partials.logo-seal', ['size' => 56, 'dark' => true])
+                        <span class="brand-lockup__text">
+                            <span class="brand-lockup__script">Café Isla<span class="brand-lockup__dot" aria-hidden="true">.</span></span>
+                        </span>
                     </div>
                     <p class="footer-lead">Slow sips brewed from four Philippine shores—ceremonial matcha, dawn espresso, and wearable coastal calm.</p>
                     <form method="POST" action="{{ route('newsletter.store') }}" class="newsletter-form">
@@ -156,35 +158,21 @@
                 </div>
 
                 <div>
-                    <h4 class="footer-heading">Customer Help</h4>
+                    <h4 class="footer-heading">Shop &amp; Support</h4>
                     <ul class="footer-links">
-                        <li><a href="{{ route('cart.index') }}">Persistent Shopping Bag</a></li>
-                        <li><a href="{{ route('orders.track') }}">Track Order Status</a></li>
-                        <li><a href="{{ route('account.index') }}">Customer Dashboard &amp; Returns</a></li>
-                        <li><a href="{{ route('admin.index') }}">Admin &amp; Courier Portal</a></li>
-                        <li><a href="{{ route('contact') }}">Contact</a></li>
+                        <li><a href="{{ route('cart.index') }}">Shopping Bag</a></li>
+                        <li><a href="{{ route('orders.track') }}">Track Order</a></li>
+                        <li><a href="{{ route('account.index') }}">My Account</a></li>
                         <li><a href="{{ route('delivery.policy') }}">Delivery &amp; Returns</a></li>
+                        <li><a href="{{ route('contact') }}">Contact</a></li>
                         <li><a href="{{ route('privacy') }}">Privacy</a></li>
                     </ul>
-                </div>
-
-                <div>
-                    <h4 class="footer-heading">Café Isla</h4>
-                    <p style="margin:0;font-family:var(--font-mono);font-size:0.8rem;line-height:1.65;color:rgba(246,241,230,0.84);">
-                        <a href="{{ route('contact') }}">Contact the café team</a><br>
-                        <a href="{{ route('delivery.policy') }}">Check delivery coverage</a>
-                    </p>
-                    <p style="margin-top:1.1rem;">
-                        <a href="#top" style="font-family:var(--font-sans);font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">Back To Top &uarr;</a>
-                    </p>
                 </div>
             </div>
 
             <div class="footer-bottom">
-                <span>Café Isla &middot; Slow sips from the archipelago (Evolved from Suot-Isla)</span>
-                    @if(config('cafeisla.demo_mode'))
-                        <span>Philippine Christian University &middot; College of Informatics Final Project</span>
-                    @endif
+                <span>&copy; 2026 Café Isla &middot; Slow sips from the archipelago</span>
+                <a href="#top" style="font-family:var(--font-sans);font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">Back To Top &uarr;</a>
             </div>
         </div>
     </footer>

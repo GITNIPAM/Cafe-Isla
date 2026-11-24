@@ -3,18 +3,22 @@
 @section('title', 'Sign In & Register · Café Isla')
 
 @section('content')
+    @php
+        $showRegister = request()->query('mode') === 'register' || old('name') !== null || $errors->has('name') || $errors->has('password');
+    @endphp
+
     <section class="page-intro">
         <div class="container">
             <h1 class="page-intro__title">Account &amp; Role Portal</h1>
             <p class="page-intro__lead">
-                Sign in to your Café Isla account or create one to place and track orders.
+                Sign in to your Café Isla account or create a new customer account to place and track orders.
             </p>
         </div>
     </section>
 
     <section class="container operate-main">
-        <div class="operate-grid-even">
-            <div class="ledger-panel">
+        <div style="max-width:620px;margin-inline:auto;">
+            <div class="ledger-panel" id="signInCard" @if($showRegister) hidden @endif>
                 <h2 class="ledger-panel__title">Sign In</h2>
                 <form method="POST" action="{{ route('auth.login') }}" class="form-stack">
                     @csrf
@@ -33,7 +37,10 @@
                     <button type="submit" class="tag-btn tag-btn--canopy">Sign In to Café Isla</button>
                 </form>
 
-                <p><a href="{{ route('password.request') }}">Forgot your password?</a></p>
+                <div style="margin-top:1.15rem;padding-top:1rem;border-top:1px solid var(--hairline);display:flex;justify-content:space-between;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+                    <span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--taupe-muted);">New to Café Isla?</span>
+                    <button type="button" id="showRegisterBtn" class="tag-btn tag-btn--outline tag-btn--sm">Create New Account</button>
+                </div>
 
                 @if(config('cafeisla.demo_mode'))
                 <div class="demo-cred-box">
@@ -54,8 +61,8 @@
                 @endif
             </div>
 
-            <div class="ledger-panel">
-                <h2 class="ledger-panel__title">Register Customer Account</h2>
+            <div class="ledger-panel" id="registerCard" @if(! $showRegister) hidden @endif>
+                <h2 class="ledger-panel__title">Create New Account</h2>
                 <form method="POST" action="{{ route('auth.register') }}" class="form-stack">
                     @csrf
                     <div class="field-group">
@@ -84,7 +91,34 @@
                     </div>
                     <button type="submit" class="tag-btn">Create Account &amp; Preserve Bag</button>
                 </form>
+
+                <div style="margin-top:1.15rem;padding-top:1rem;border-top:1px solid var(--hairline);display:flex;justify-content:space-between;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+                    <span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--taupe-muted);">Already have an account?</span>
+                    <button type="button" id="showSignInBtn" class="tag-btn tag-btn--outline tag-btn--sm">Back to Sign In</button>
+                </div>
             </div>
         </div>
     </section>
+
+    <script>
+        (function () {
+            var signInCard = document.getElementById('signInCard');
+            var registerCard = document.getElementById('registerCard');
+            var showRegisterBtn = document.getElementById('showRegisterBtn');
+            var showSignInBtn = document.getElementById('showSignInBtn');
+
+            if (showRegisterBtn && signInCard && registerCard) {
+                showRegisterBtn.addEventListener('click', function () {
+                    signInCard.hidden = true;
+                    registerCard.hidden = false;
+                });
+            }
+            if (showSignInBtn && signInCard && registerCard) {
+                showSignInBtn.addEventListener('click', function () {
+                    registerCard.hidden = true;
+                    signInCard.hidden = false;
+                });
+            }
+        })();
+    </script>
 @endsection

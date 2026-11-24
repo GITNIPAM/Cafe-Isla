@@ -21,9 +21,9 @@
   --isla-boracay: #B87B28;
   --isla-elnido: #335C6E;
 
-  --font-display: 'Libre Caslon Display', Georgia, serif;
-  --font-serif: 'Libre Caslon Text', Georgia, serif;
-  --font-sans: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Courier Prime', 'Courier New', monospace;
 
   --container-max: 1320px;
@@ -212,27 +212,27 @@ textarea {
 
 .brand-lockup__text {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
+  align-items: center;
 }
 
 .brand-lockup__script {
-  font-family: 'Pinyon Script', Georgia, cursive;
-  font-size: 2.25rem;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.92rem;
   font-weight: 400;
-  line-height: 0.92;
+  line-height: 1;
   color: var(--canopy-deep);
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
   white-space: nowrap;
 }
 
-.brand-lockup__tagline {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: 0.74rem;
-  color: var(--taupe-muted);
-  white-space: nowrap;
+.brand-lockup__dot {
+  color: #D96245;
+  margin-left: 0.04em;
+}
+
+.brand-lockup--footer .brand-lockup__script {
+  color: var(--bg-parchment);
 }
 
 .site-nav {
@@ -480,7 +480,7 @@ textarea {
   align-items: flex-end;
   justify-content: space-between;
   gap: 1.25rem;
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.5rem;
 }
 
 .section-heading {
@@ -531,8 +531,8 @@ textarea {
 
 .island-panel {
   display: none;
-  grid-template-columns: 0.92fr 1.08fr;
-  gap: clamp(1.5rem, 3.5vw, 3rem);
+  grid-template-columns: 0.84fr 1.16fr;
+  gap: clamp(1.5rem, 3vw, 2.75rem);
   align-items: start;
 }
 
@@ -541,11 +541,12 @@ textarea {
 }
 
 .island-panel__media {
+  position: sticky;
+  top: 5.75rem;
   border: 1px solid var(--espresso-ink);
   background-color: var(--bg-parchment);
-  aspect-ratio: 3 / 3.6;
+  aspect-ratio: 3 / 4;
   overflow: hidden;
-  position: relative;
 }
 
 .island-panel__media img {
@@ -572,7 +573,7 @@ textarea {
 .island-panel__details {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.95rem;
 }
 
 .island-panel__title {
@@ -597,10 +598,11 @@ textarea {
 }
 
 .quick-pour-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  padding: 1.05rem 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  padding: 0.82rem 0;
   border-bottom: 1px solid var(--hairline);
 }
 
@@ -619,31 +621,32 @@ textarea {
 
 .quick-pour-row__desc {
   margin: 0.25rem 0 0 0;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
   color: var(--taupe-muted);
-  line-height: 1.45;
+  line-height: 1.5;
   max-width: 60ch;
 }
 
 .quick-pour-row__controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
-  justify-content: flex-start;
+  gap: 0.4rem;
+  justify-content: flex-end;
   align-items: center;
 }
 
 .variant-pour-btn {
   background-color: var(--bg-parchment);
   border: 1px solid var(--espresso-ink);
-  padding: 0.42rem 0.72rem;
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
+  padding: 0.45rem 0.78rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   transition: background-color 150ms ease, color 150ms ease;
 }
 
@@ -779,11 +782,11 @@ textarea {
 }
 
 .menu-line-item__notes {
-  margin: 0.2rem 0 0 0;
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
+  margin: 0.22rem 0 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
   color: var(--taupe-muted);
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 /* Isla Merch Carousel (Suot-Isla Coastal Capsule) */
@@ -1090,7 +1093,7 @@ textarea {
 
 .footer-grid {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr 0.85fr;
+  grid-template-columns: 1.35fr 1fr 1fr;
   gap: 2.5rem;
   padding-bottom: 2.5rem;
   border-bottom: 1px solid rgba(246, 241, 230, 0.2);
@@ -1361,6 +1364,11 @@ textarea {
   .footer-grid {
     grid-template-columns: 1fr;
   }
+  .island-panel__media {
+    position: relative;
+    top: auto;
+    aspect-ratio: 4 / 3;
+  }
   .catalog-grid {
     grid-template-columns: 1fr;
   }
@@ -1369,6 +1377,17 @@ textarea {
   }
   .hero-frame {
     aspect-ratio: 16 / 10;
+  }
+}
+
+@media (max-width: 640px) {
+  .quick-pour-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 0.6rem;
+  }
+  .quick-pour-row__controls {
+    justify-content: flex-start;
   }
 }
 .newsletter-form {

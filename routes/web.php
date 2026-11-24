@@ -7,7 +7,6 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\EmailInboxController;
 use App\Http\Controllers\NewsletterController;
-use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Middleware\ShopVisitMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -37,12 +36,6 @@ Route::get('/auth', [AuthController::class, 'index'])->name('auth.index');
 Route::post('/auth/register', [AuthController::class, 'register'])->name('auth.register');
 Route::post('/auth/login', [AuthController::class, 'login'])->name('auth.login');
 Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
-Route::middleware('guest')->group(function () {
-    Route::get('/forgot-password', [PasswordResetController::class, 'request'])->name('password.request');
-    Route::post('/forgot-password', [PasswordResetController::class, 'send'])->middleware('throttle:6,1')->name('password.email');
-    Route::get('/reset-password/{token}', [PasswordResetController::class, 'edit'])->name('password.reset');
-    Route::post('/reset-password', [PasswordResetController::class, 'update'])->middleware('throttle:6,1')->name('password.update');
-});
 
 // Authenticated Customer Flows
 Route::middleware('auth')->group(function () {
