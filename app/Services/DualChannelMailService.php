@@ -114,7 +114,7 @@ class DualChannelMailService
                 $message->to($recipient)->subject($subject);
             });
             $mailer = (string) config('mail.default', 'log');
-            $smtpStatus = $mailer === 'log' ? 'delivered (dual-log)' : 'smtp-sent + logged';
+            $smtpStatus = $mailer === 'log' ? 'delivered (dual-log)' : $mailer.'-sent + logged';
         } catch (\Throwable $e) {
             $smtpStatus = 'logged-fallback ('.substr($e->getMessage(), 0, 32).')';
         }
