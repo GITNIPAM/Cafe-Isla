@@ -7,7 +7,7 @@
         <div class="container">
             <h1 class="page-intro__title">Track Your Archipelago Order</h1>
             <p class="page-intro__lead">
-                Enter any Café Isla order number (for example <strong>CI-2026-1003</strong> or <strong>CI-2026-1001</strong>) to check live prep and rider updates.
+                Enter any Café Isla order number (<strong>CI-2026-1003</strong>) or tracking number (<strong>TRK-1003-ISLA</strong>) to check live prep and rider updates.
             </p>
         </div>
     </section>
@@ -15,7 +15,7 @@
     <section class="container operate-main">
         <div class="ledger-panel" style="max-width:760px;">
             <form method="GET" action="{{ route('orders.track') }}" style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-                <input type="text" name="order" value="{{ $orderNumber }}" placeholder="Enter Order # (e.g. CI-2026-1003)" class="field-control" style="flex:1;" required>
+                <input type="text" name="order" value="{{ $orderNumber }}" placeholder="Order # or Tracking # (e.g. CI-2026-1003 or TRK-1003-ISLA)" class="field-control" style="flex:1;" required>
                 <button type="submit" class="tag-btn tag-btn--canopy">Track Order</button>
             </form>
 
@@ -37,15 +37,23 @@
                     </p>
 
                     @php
-                        $steps = ['pending' => 1, 'confirmed' => 2, 'preparing' => 3, 'shipped' => 4, 'delivered' => 5];
-                        $idx = $steps[$order->status] ?? 0;
+                        $delStatus = $order->delivery?->status ?? 'unassigned';
+                        $idx = match ($order->status) {
+                            'pending' => 1,
+                            'confirmed' => 2,
+                            'preparing' => 3,
+                            'shipped' => $delStatus === 'in_transit' ? 5 : 4,
+                            'delivered' => 6,
+                            default => 0,
+                        };
                     @endphp
                     <div class="timeline-bar">
                         <div class="timeline-step {{ $idx >= 1 ? 'is-reached' : '' }}">Placed</div>
                         <div class="timeline-step {{ $idx >= 2 ? 'is-reached' : '' }}">Confirmed</div>
-                        <div class="timeline-step {{ $idx >= 3 ? 'is-reached' : '' }}">Barista Prep</div>
-                        <div class="timeline-step {{ $idx >= 4 ? 'is-reached' : '' }}">In Transit</div>
-                        <div class="timeline-step {{ $idx >= 5 ? 'is-reached' : '' }}">Delivered</div>
+                        <div class="timeline-step {{ $idx >= 3 ? 'is-reached' : '' }}">Preparing</div>
+                        <div class="timeline-step {{ $idx >= 4 ? 'is-reached' : '' }}">Shipped</div>
+                        <div class="timeline-step {{ $idx >= 5 ? 'is-reached' : '' }}">Courier Tracking</div>
+                        <div class="timeline-step {{ $idx >= 6 ? 'is-reached' : '' }}">Delivered</div>
                     </div>
 
                     <div style="margin-top:1.25rem;">

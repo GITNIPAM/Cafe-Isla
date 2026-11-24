@@ -43,7 +43,7 @@ class User extends Authenticatable
 
     public function isOperator(): bool
     {
-        return $this->hasRole(['admin', 'staff', 'courier']);
+        return $this->hasRole(['admin', 'courier']);
     }
 
     public function addresses(): HasMany

@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Café Isla · Slow sips from the archipelago')</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Courier+Prime:wght@400;700&family=Libre+Caslon+Display&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Courier+Prime:wght@400;700&family=Libre+Caslon+Display&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Pinyon+Script&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('assets/css/isla.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/operate.css') }}">
     @stack('styles')
@@ -25,15 +26,9 @@
     <header class="site-header">
         <div class="site-header__inner">
             <a href="{{ route('home') }}" class="brand-lockup" aria-label="Café Isla Home">
-                <svg class="brand-lockup__emblem" viewBox="0 0 44 44" fill="none" stroke="#1C3127" stroke-width="1.5" aria-hidden="true">
-                    <rect x="2" y="2" width="40" height="40"/>
-                    <circle cx="22" cy="17" r="6" stroke="#C4553A"/>
-                    <path d="M10 27C14 23 18 31 22 27C26 23 30 31 34 27"/>
-                    <path d="M10 33C14 29 18 37 22 33C26 29 30 37 34 33" stroke="#C4553A"/>
-                    <path d="M22 11C25 14 25 19 22 22C19 19 19 14 22 11Z"/>
-                </svg>
-                <span class="brand-lockup__wordmark-wrap">
-                    <span style="font-family:var(--font-display);font-style:italic;font-size:1.55rem;letter-spacing:-0.02em;color:var(--canopy-deep);">Café Isla</span>
+                @include('partials.logo-seal', ['size' => 52, 'class' => 'brand-lockup__seal'])
+                <span class="brand-lockup__text">
+                    <span class="brand-lockup__script">Café Isla</span>
                     <span class="brand-lockup__tagline">Slow sips from the archipelago</span>
                 </span>
             </a>
@@ -125,6 +120,9 @@
         <div class="container">
             <div class="footer-grid">
                 <div>
+                    <div style="margin-bottom:0.9rem;">
+                        @include('partials.logo-seal', ['size' => 68, 'dark' => true])
+                    </div>
                     <p class="footer-lead">Slow sips brewed from four Philippine shores—ceremonial matcha, dawn espresso, and wearable coastal calm.</p>
                     <form class="footer-underline-form" onsubmit="event.preventDefault(); alert('Salamat! You are on the Café Isla seasonal island harvest dispatch.'); this.reset();">
                         <input type="email" required placeholder="EMAIL ADDRESS FOR SEASONAL POURS" aria-label="Email address for seasonal pours">
@@ -149,7 +147,7 @@
                         <li><a href="{{ route('cart.index') }}">Persistent Shopping Bag</a></li>
                         <li><a href="{{ route('orders.track') }}">Track Order Status</a></li>
                         <li><a href="{{ route('account.index') }}">Customer Dashboard &amp; Returns</a></li>
-                        <li><a href="{{ route('admin.index') }}">Admin, Staff &amp; Courier Portal</a></li>
+                        <li><a href="{{ route('admin.index') }}">Admin &amp; Courier Portal</a></li>
                         <li><a href="{{ route('diagrams.index') }}">ERD, Use Cases &amp; Brand Guide</a></li>
                     </ul>
                 </div>

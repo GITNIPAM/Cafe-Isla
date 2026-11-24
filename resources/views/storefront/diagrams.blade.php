@@ -46,7 +46,7 @@
                             ['name' => 'cart_items', 'tag' => '1:N carts', 'cols' => [['id', 'PK'], ['cart_id', 'FK'], ['product_variant_id', 'FK'], ['quantity', 'int'], ['unit_price', 'decimal'], ['custom_notes', 'varchar']]],
                             ['name' => 'orders', 'tag' => 'Core TX', 'cols' => [['id', 'PK'], ['order_number', 'UK'], ['user_id', 'FK'], ['coupon_id', 'FK?'], ['delivery_zone', 'enum'], ['grand_total', 'decimal'], ['status', 'enum']]],
                             ['name' => 'order_items', 'tag' => 'Snapshot', 'cols' => [['id', 'PK'], ['order_id', 'FK'], ['product_id', 'FK'], ['product_variant_id', 'FK'], ['is_perishable', 'bool'], ['line_total', 'decimal']]],
-                            ['name' => 'payments', 'tag' => '1:1 orders', 'cols' => [['id', 'PK'], ['order_id', 'UK, FK'], ['method', 'gcash|maya|cod'], ['reference_number', 'varchar'], ['status', 'enum']]],
+                            ['name' => 'payments', 'tag' => '1:1 orders', 'cols' => [['id', 'PK'], ['order_id', 'UK, FK'], ['method', 'gcash|cod'], ['reference_number', 'varchar'], ['status', 'enum']]],
                             ['name' => 'deliveries', 'tag' => '1:1 orders', 'cols' => [['id', 'PK'], ['order_id', 'UK, FK'], ['courier_user_id', 'FK?'], ['tracking_number', 'UK'], ['status', 'enum']]],
                             ['name' => 'return_requests', 'tag' => 'Hybrid', 'cols' => [['id', 'PK'], ['order_id', 'FK'], ['order_item_id', 'FK?'], ['user_id', 'FK'], ['processed_by', 'FK?'], ['restock_applied', 'bool'], ['status', 'enum']]],
                             ['name' => 'email_logs', 'tag' => 'Dual-Mail', 'cols' => [['id', 'PK'], ['user_id', 'FK?'], ['order_id', 'FK?'], ['event_type', 'enum'], ['recipient_email', 'varchar'], ['smtp_status', 'varchar']]],
@@ -130,7 +130,7 @@
                     <text x="85" y="642" text-anchor="middle" font-size="13" font-weight="700" fill="#261D18">COURIER</text>
                     <text x="85" y="658" text-anchor="middle" font-size="11" fill="#6E6256">(Fulfillment Rider)</text>
 
-                    <!-- Right Actors: Admin/Staff & External Systems -->
+                    <!-- Right Actors: Admin & External Systems -->
                     <g stroke="#261D18" stroke-width="2" fill="none">
                         <circle cx="1025" cy="160" r="18"/>
                         <line x1="1025" y1="178" x2="1025" y2="225"/>
@@ -138,8 +138,8 @@
                         <line x1="1025" y1="225" x2="1002" y2="260"/>
                         <line x1="1025" y1="225" x2="1048" y2="260"/>
                     </g>
-                    <text x="1025" y="282" text-anchor="middle" font-size="13" font-weight="700" fill="#261D18">ADMIN / STAFF</text>
-                    <text x="1025" y="298" text-anchor="middle" font-size="11" fill="#6E6256">(RBAC Operators)</text>
+                    <text x="1025" y="282" text-anchor="middle" font-size="13" font-weight="700" fill="#261D18">ADMIN</text>
+                    <text x="1025" y="298" text-anchor="middle" font-size="11" fill="#6E6256">(Store Owner)</text>
 
                     <rect x="945" y="385" width="160" height="58" fill="#ECE3D0" stroke="#1C3127" stroke-width="1.5"/>
                     <text x="1025" y="408" text-anchor="middle" font-size="10" fill="#C4553A" font-weight="700">&lt;&lt;external actor&gt;&gt;</text>
@@ -251,10 +251,61 @@
                         </div>
 
                         <div>
-                            <strong style="font-family:var(--font-sans);font-size:0.78rem;text-transform:uppercase;">Logo &amp; Palette Linkage</strong>
-                            <p style="margin:0.35rem 0 0 0;">
-                                The architectural square crest unites a terracotta rising sun (warmth &amp; dawn harvest), dual ocean waves (archipelago shores), and a centered tea leaf/coffee bean silhouette—set in Ceremonial Canopy Green (<code>#1C3127</code>), Terracotta Clay (<code>#C4553A</code>), and Sun-Bleached Abaca Parchment (<code>#F6F1E6</code>).
+                            <strong style="font-family:var(--font-sans);font-size:0.78rem;text-transform:uppercase;">Full Brand Identity &amp; Roastery Seal Specimens</strong>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;margin-top:0.6rem;">
+                                <div style="padding:1.25rem;border:1px solid var(--espresso-ink);background:var(--bg-parchment);display:flex;flex-direction:column;align-items:center;text-align:center;gap:0.65rem;">
+                                    <div id="sealLightWrap">@include('partials.logo-seal', ['size' => 124])</div>
+                                    <div>
+                                        <span style="font-family:'Pinyon Script',Georgia,cursive;font-size:2.1rem;color:#1C3127;line-height:0.92;">Café Isla</span>
+                                        <div style="font-family:var(--font-serif);font-style:italic;font-size:0.74rem;color:#6E6256;margin-top:3px;">Parchment Cup-Sleeve &amp; Storefront Seal</div>
+                                    </div>
+                                    <button type="button" class="tag-btn tag-btn--outline tag-btn--sm" data-download-seal="sealLightWrap" data-filename="cafe-isla-seal-parchment.svg">Download SVG</button>
+                                </div>
+                                <div style="padding:1.25rem;border:1px solid var(--espresso-ink);background:#1C3127;display:flex;flex-direction:column;align-items:center;text-align:center;gap:0.65rem;">
+                                    <div id="sealDarkWrap">@include('partials.logo-seal', ['size' => 124, 'dark' => true])</div>
+                                    <div>
+                                        <span style="font-family:'Pinyon Script',Georgia,cursive;font-size:2.1rem;color:#F6F1E6;line-height:0.92;">Café Isla</span>
+                                        <div style="font-family:var(--font-serif);font-style:italic;font-size:0.74rem;color:rgba(246,241,230,0.78);margin-top:3px;">Inverted Canopy Merch Tag &amp; Footer Seal</div>
+                                    </div>
+                                    <button type="button" class="tag-btn tag-btn--sm" data-download-seal="sealDarkWrap" data-filename="cafe-isla-seal-canopy.svg">Download SVG</button>
+                                </div>
+                            </div>
+                            <p style="margin:0.65rem 0 0 0;">
+                                The double-ring <strong>Coastal Sun, Leaf &amp; Horizon</strong> roastery seal frames curved circular typography (<code>CAFÉ ISLA · ARCHIPELAGO · 2026</code>) around a terracotta rising sun with dawn rays (<code>#C4553A</code>), a botanical tea/palm leaf silhouette, and dual ocean waves in Ceremonial Canopy Green (<code>#1C3127</code>) over Abaca Parchment (<code>#F6F1E6</code>).
                             </p>
+                        </div>
+
+                        <div>
+                            <strong style="font-family:var(--font-sans);font-size:0.78rem;text-transform:uppercase;">Packaging &amp; Merch Application Preview</strong>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;margin-top:0.55rem;">
+                                <div style="border:1px solid var(--espresso-ink);background:#ECE3D0;padding:1rem;display:flex;align-items:center;gap:0.9rem;">
+                                    @include('partials.logo-seal', ['size' => 58])
+                                    <div style="font-family:var(--font-mono);font-size:0.74rem;line-height:1.45;">
+                                        <strong style="font-family:var(--font-sans);text-transform:uppercase;letter-spacing:0.06em;">Kraft Cup Sleeve</strong><br>
+                                        La Union Matcha Bar<br>
+                                        16.6631° N, 120.3208° E
+                                    </div>
+                                </div>
+                                <div style="border:1px solid var(--espresso-ink);background:#1C3127;color:#F6F1E6;padding:1rem;display:flex;align-items:center;gap:0.9rem;">
+                                    @include('partials.logo-seal', ['size' => 58, 'dark' => true])
+                                    <div style="font-family:var(--font-mono);font-size:0.74rem;line-height:1.45;">
+                                        <strong style="font-family:var(--font-sans);text-transform:uppercase;letter-spacing:0.06em;">Isla Merch Hangtag</strong><br>
+                                        Suot-Isla Coastal Linen<br>
+                                        Batch · Small-Run Drop
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <strong style="font-family:var(--font-sans);font-size:0.78rem;text-transform:uppercase;">Brand Palette Swatches (Click to Copy Hex)</strong>
+                            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.45rem;margin-top:0.55rem;">
+                                @foreach([['#F6F1E6','Parchment','#261D18'],['#ECE3D0','Limestone','#261D18'],['#1C3127','Canopy','#F6F1E6'],['#C4553A','Clay Coral','#F6F1E6'],['#4A6B46','La Union','#F6F1E6'],['#1F4E52','Siargao','#F6F1E6'],['#B87B28','Boracay','#F6F1E6'],['#335C6E','El Nido','#F6F1E6']] as $sw)
+                                    <button type="button" data-copy-hex="{{ $sw[0] }}" style="border:1px solid var(--espresso-ink);background:{{ $sw[0] }};color:{{ $sw[2] }};padding:0.5rem 0.4rem;text-align:left;cursor:pointer;font-family:var(--font-mono);font-size:0.7rem;line-height:1.3;">
+                                        <strong>{{ $sw[1] }}</strong><br>{{ $sw[0] }}
+                                    </button>
+                                @endforeach
+                            </div>
                         </div>
 
                         <div>
@@ -282,8 +333,7 @@
                             <tbody>
                                 <tr><td><strong>Customer</strong></td><td style="font-family:var(--font-mono);">customer@cafeisla.ph<br>Isla2026!</td><td>Browse, Bag, Checkout, Track, Inbox, Cancel &amp; Return</td></tr>
                                 <tr><td><strong>Admin</strong></td><td style="font-family:var(--font-mono);">admin@cafeisla.ph<br>Isla2026!</td><td>Full CRUD + Image Upload, Analytics, Orders, Returns, Team RBAC</td></tr>
-                                <tr><td><strong>Staff</strong></td><td style="font-family:var(--font-mono);">barista@cafeisla.ph<br>Isla2026!</td><td>Order Prep, Stock/Price Edits, Product Uploads, Returns (No RBAC)</td></tr>
-                                <tr><td><strong>Courier</strong></td><td style="font-family:var(--font-mono);">rider@cafeisla.ph<br>Isla2026!</td><td>Fulfillment-Only: Mark In Transit &rarr; Delivered + Trigger Email</td></tr>
+                                <tr><td><strong>Courier</strong></td><td style="font-family:var(--font-mono);">rider@cafeisla.ph<br>Isla2026!</td><td>Fulfillment-Only: Courier Tracking &rarr; Confirm Delivery &rarr; Delivered</td></tr>
                             </tbody>
                         </table>
                     </div>

@@ -68,15 +68,23 @@
 
                                     @if(! in_array($order->status, ['cancelled', 'returned'], true))
                                         @php
-                                            $steps = ['pending' => 1, 'confirmed' => 2, 'preparing' => 3, 'shipped' => 4, 'delivered' => 5];
-                                            $idx = $steps[$order->status] ?? 1;
+                                            $delStatus = $order->delivery?->status ?? 'unassigned';
+                                            $idx = match ($order->status) {
+                                                'pending' => 1,
+                                                'confirmed' => 2,
+                                                'preparing' => 3,
+                                                'shipped' => $delStatus === 'in_transit' ? 5 : 4,
+                                                'delivered' => 6,
+                                                default => 1,
+                                            };
                                         @endphp
                                         <div class="timeline-bar">
                                             <div class="timeline-step {{ $idx >= 1 ? 'is-reached' : '' }}">Placed</div>
                                             <div class="timeline-step {{ $idx >= 2 ? 'is-reached' : '' }}">Confirmed</div>
                                             <div class="timeline-step {{ $idx >= 3 ? 'is-reached' : '' }}">Preparing</div>
                                             <div class="timeline-step {{ $idx >= 4 ? 'is-reached' : '' }}">Shipped</div>
-                                            <div class="timeline-step {{ $idx >= 5 ? 'is-reached' : '' }}">Delivered</div>
+                                            <div class="timeline-step {{ $idx >= 5 ? 'is-reached' : '' }}">Courier Tracking</div>
+                                            <div class="timeline-step {{ $idx >= 6 ? 'is-reached' : '' }}">Delivered</div>
                                         </div>
                                     @endif
 
@@ -206,12 +214,21 @@
 
                 <div class="ledger-panel">
                     <h2 class="ledger-panel__title">My Email Notifications ({{ $emailLogs->count() }})</h2>
-                    @foreach($emailLogs as $mail)
-                        <div style="border-bottom:1px solid var(--hairline);padding:0.55rem 0;font-family:var(--font-mono);font-size:0.78rem;">
-                            <strong>{{ $mail->subject }}</strong>
-                            <div style="color:var(--taupe-muted);">{{ $mail->sent_at?->format('M d, Y g:i A') }} &middot; {{ $mail->smtp_status }}</div>
+                    @forelse($emailLogs as $mail)
+                        <details style="border-bottom:1px solid var(--hairline);padding:0.55rem 0;font-family:var(--font-mono);font-size:0.78rem;">
+                            <summary style="cursor:pointer;">
+                                <strong>{{ $mail->subject }}</strong>
+                                <div style="color:var(--taupe-muted);">{{ $mail->sent_at?->format('M d, Y g:i A') }} &middot; {{ $mail->smtp_status }}</div>
+                            </summary>
+                            <div style="margin-top:0.55rem;padding:0.75rem;border:1px solid var(--hairline);background:var(--bg-parchment);font-family:var(--font-serif);font-size:0.86rem;line-height:1.5;">
+                                {!! $mail->body_html !!}
+                            </div>
+                        </details>
+                    @empty
+                        <div style="font-family:var(--font-mono);font-size:0.78rem;color:var(--taupe-muted);">
+                            No email notifications yet.
                         </div>
-                    @endforeach
+                    @endforelse
                 </div>
             </div>
         </div>

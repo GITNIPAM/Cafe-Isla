@@ -24,7 +24,7 @@
                     </div>
                     <div class="field-group">
                         <label for="loginPasswordInput" class="field-label">Password</label>
-                        <input type="password" id="loginPasswordInput" name="password" class="field-control" required>
+                        @include('partials.password-input', ['id' => 'loginPasswordInput', 'name' => 'password'])
                     </div>
                     <label style="display:flex;align-items:center;gap:0.5rem;font-family:var(--font-mono);font-size:0.8rem;">
                         <input type="checkbox" name="remember" value="1">
@@ -42,10 +42,6 @@
                     <button type="button" class="demo-cred-btn" data-demo-email="admin@cafeisla.ph" data-demo-pass="Isla2026!">
                         <span><strong>Admin</strong> &middot; Camille Reyes</span>
                         <span>admin@cafeisla.ph</span>
-                    </button>
-                    <button type="button" class="demo-cred-btn" data-demo-email="barista@cafeisla.ph" data-demo-pass="Isla2026!">
-                        <span><strong>Staff Barista</strong> &middot; Mateo Santos</span>
-                        <span>barista@cafeisla.ph</span>
                     </button>
                     <button type="button" class="demo-cred-btn" data-demo-email="rider@cafeisla.ph" data-demo-pass="Isla2026!">
                         <span><strong>Fulfillment Courier</strong> &middot; Jomar Dela Cruz</span>
@@ -75,11 +71,11 @@
                     <div class="form-row-2">
                         <div class="field-group">
                             <label for="reg_password" class="field-label">Password (min 8 chars)</label>
-                            <input type="password" id="reg_password" name="password" class="field-control" required minlength="8">
+                            @include('partials.password-input', ['id' => 'reg_password', 'name' => 'password', 'minlength' => 8])
                         </div>
                         <div class="field-group">
                             <label for="reg_password_confirmation" class="field-label">Confirm Password</label>
-                            <input type="password" id="reg_password_confirmation" name="password_confirmation" class="field-control" required minlength="8">
+                            @include('partials.password-input', ['id' => 'reg_password_confirmation', 'name' => 'password_confirmation', 'minlength' => 8])
                         </div>
                     </div>
                     <button type="submit" class="tag-btn">Create Account &amp; Preserve Bag</button>

@@ -113,18 +113,14 @@
                                 <span>GCash Instant</span>
                             </label>
                             <label class="variant-chip">
-                                <input type="radio" name="payment_method" value="maya_card" @checked(old('payment_method') === 'maya_card')>
-                                <span>Maya / Debit Card</span>
-                            </label>
-                            <label class="variant-chip">
                                 <input type="radio" name="payment_method" value="cod" @checked(old('payment_method') === 'cod')>
                                 <span>Cash on Delivery (COD)</span>
                             </label>
                         </div>
 
                         <div class="form-row-2">
-                            <div class="field-group">
-                                <label for="payment_account_ref" class="field-label">Mock Payment Ref / Account Last 4</label>
+                            <div class="field-group" id="gcashRefGroup" style="{{ old('payment_method', 'gcash') === 'cod' ? 'display:none;' : '' }}">
+                                <label for="payment_account_ref" class="field-label">GCash Ref / Mobile Last 4</label>
                                 <input type="text" id="payment_account_ref" name="payment_account_ref" value="{{ old('payment_account_ref', 'GCASH-8841') }}" class="field-control">
                             </div>
                             <div class="field-group">

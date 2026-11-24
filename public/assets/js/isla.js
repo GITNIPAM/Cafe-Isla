@@ -323,5 +323,74 @@
     });
   });
 
+  // 10. Password Show / Hide Toggle
+  document.querySelectorAll('[data-password-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const wrap = btn.closest('.password-field-wrap');
+      const input = wrap?.querySelector('input');
+      if (!input) return;
+
+      const showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      btn.setAttribute('aria-pressed', showing ? 'false' : 'true');
+      btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+
+      const labelEl = btn.querySelector('[data-password-toggle-label]');
+      if (labelEl) labelEl.textContent = showing ? 'Show' : 'Hide';
+
+      const showIcon = btn.querySelector('.password-toggle-btn__icon-show');
+      const hideIcon = btn.querySelector('.password-toggle-btn__icon-hide');
+      if (showIcon) showIcon.style.display = showing ? 'inline' : 'none';
+      if (hideIcon) hideIcon.style.display = showing ? 'none' : 'inline';
+    });
+  });
+
+  // 11. Checkout Payment Method Ref Toggle (GCash vs COD)
+  const gcashRefGroup = document.getElementById('gcashRefGroup');
+  if (gcashRefGroup) {
+    const syncPaymentRef = () => {
+      const selected = document.querySelector('input[name="payment_method"]:checked')?.value;
+      gcashRefGroup.style.display = selected === 'cod' ? 'none' : '';
+    };
+    document.querySelectorAll('input[name="payment_method"]').forEach((radio) => {
+      radio.addEventListener('change', syncPaymentRef);
+    });
+    syncPaymentRef();
+  }
+
+  // 12. Brand Kit SVG Logo Download & Hex Copy (/diagrams)
+  document.querySelectorAll('[data-download-seal]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const wrap = document.getElementById(btn.dataset.downloadSeal);
+      const svg = wrap?.querySelector('svg');
+      if (!svg) return;
+      const serializer = new XMLSerializer();
+      const source = '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(svg);
+      const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = btn.dataset.filename || 'cafe-isla-seal.svg';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    });
+  });
+
+  document.querySelectorAll('[data-copy-hex]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const hex = btn.dataset.copyHex;
+      try {
+        await navigator.clipboard.writeText(hex);
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<strong>Copied</strong><br>${hex}`;
+        setTimeout(() => { btn.innerHTML = orig; }, 1100);
+      } catch (e) {
+        console.error(e);
+      }
+    });
+  });
+
   bindBagItemControls();
 })();

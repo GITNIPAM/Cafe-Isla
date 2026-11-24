@@ -254,6 +254,60 @@
   color: var(--bg-paper-bright);
 }
 
+/* Password Visibility Toggle */
+.password-field-wrap {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  border: 1px solid var(--espresso-ink);
+  background-color: var(--bg-paper-bright);
+}
+
+.password-field-wrap:focus-within {
+  outline: 2px solid var(--clay-coral);
+  outline-offset: 2px;
+}
+
+.password-field-wrap__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.58rem 0.72rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.password-field-wrap__input:focus {
+  outline: none;
+}
+
+.password-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-left: 1px solid var(--hairline);
+  border-radius: 0;
+  background-color: var(--bg-limestone);
+  color: var(--espresso-ink);
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.password-toggle-btn:hover {
+  background-color: var(--canopy-deep);
+  color: var(--bg-paper-bright);
+}
+
 /* Order Progress Timeline */
 .timeline-bar {
   display: grid;

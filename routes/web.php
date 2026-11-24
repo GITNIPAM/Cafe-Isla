@@ -46,23 +46,25 @@ Route::middleware('auth')->group(function () {
     Route::post('/account/orders/{order}/return', [AccountController::class, 'requestReturn'])->name('account.orders.return');
 });
 
-// Role-Protected Operational Portal (Admin, Staff, Courier)
+// Role-Protected Operational Portal (Admin & Courier)
 Route::prefix('admin')
-    ->middleware(['auth', 'role:admin,staff,courier'])
+    ->middleware(['auth', 'role:admin,courier'])
     ->group(function () {
         Route::get('/', [AdminPortalController::class, 'index'])->name('admin.index');
 
-        // Inventory & Categories CRUD (Admin & Staff)
-        Route::middleware('role:admin,staff')->group(function () {
+        // Inventory & Categories CRUD (Admin Only)
+        Route::middleware('role:admin')->group(function () {
             Route::post('/products', [AdminPortalController::class, 'storeProduct'])->name('admin.products.store');
             Route::patch('/products/{product}', [AdminPortalController::class, 'updateProduct'])->name('admin.products.update');
             Route::delete('/products/{product}', [AdminPortalController::class, 'deleteProduct'])->name('admin.products.delete');
+            Route::post('/products/{product}/variants', [AdminPortalController::class, 'storeVariant'])->name('admin.variants.store');
             Route::patch('/variants/{variant}', [AdminPortalController::class, 'updateVariant'])->name('admin.variants.update');
             Route::post('/categories', [AdminPortalController::class, 'storeCategory'])->name('admin.categories.store');
+            Route::patch('/categories/{category}', [AdminPortalController::class, 'updateCategory'])->name('admin.categories.update');
             Route::post('/returns/{returnRequest}', [AdminPortalController::class, 'processReturn'])->name('admin.returns.process');
         });
 
-        // Order Fulfillment & Delivery Updates (Admin, Staff, Courier)
+        // Order Fulfillment & Delivery Updates (Admin & Courier)
         Route::patch('/orders/{order}', [AdminPortalController::class, 'updateOrderStatus'])->name('admin.orders.update');
 
         // Customer & Team RBAC Management (Admin Only)

@@ -35,7 +35,6 @@ class Payment extends Model
     {
         return match ($this->method) {
             'gcash' => 'GCash Instant',
-            'maya_card' => 'Maya / Card',
             'cod' => 'Cash on Delivery',
             default => strtoupper((string) $this->method),
         };

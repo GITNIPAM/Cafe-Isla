@@ -30,14 +30,11 @@ class AdminPortalController extends Controller
 
         $defaultTab = match ($role) {
             'courier' => 'orders',
-            'staff' => 'orders',
             default => 'analytics',
         };
 
         $activeTab = $request->query('tab', $defaultTab);
         if ($role === 'courier') {
-            $activeTab = 'orders';
-        } elseif ($role === 'staff' && in_array($activeTab, ['analytics', 'team'], true)) {
             $activeTab = 'orders';
         }
 
@@ -92,12 +89,18 @@ class AdminPortalController extends Controller
 
         // Team & Customers (Admin only)
         $customers = User::where('role', 'customer')
+            ->with([
+                'orders' => fn ($q) => $q->orderByDesc('placed_at'),
+                'orders.items',
+                'returnRequests.order',
+                'addresses',
+            ])
             ->withCount('orders')
             ->withSum(['orders' => fn ($q) => $q->whereNotIn('status', ['cancelled', 'returned'])], 'grand_total')
             ->orderBy('name')
             ->get();
 
-        $teamMembers = User::whereIn('role', ['admin', 'staff', 'courier'])
+        $teamMembers = User::whereIn('role', ['admin', 'courier'])
             ->orderBy('role')
             ->orderBy('name')
             ->get();
@@ -233,14 +236,43 @@ class AdminPortalController extends Controller
         return redirect()->route('admin.index', ['tab' => 'inventory'])->with('success', 'Updated "'.$product->name.'".');
     }
 
+    public function storeVariant(Request $request, Product $product): RedirectResponse
+    {
+        $validated = $request->validate([
+            'label' => ['required', 'string', 'max:80'],
+            'serve_temp' => ['required', 'in:hot,iced,na'],
+            'price' => ['required', 'numeric', 'min:1'],
+            'stock_qty' => ['required', 'integer', 'min:0'],
+        ]);
+
+        ProductVariant::create([
+            'product_id' => $product->id,
+            'variant_code' => $product->sku.'-'.strtoupper(Str::random(4)),
+            'label' => $validated['label'],
+            'serve_temp' => $validated['serve_temp'],
+            'size_option' => $validated['label'],
+            'price' => $validated['price'],
+            'stock_qty' => $validated['stock_qty'],
+            'low_stock_threshold' => 5,
+            'is_active' => true,
+        ]);
+
+        return redirect()->route('admin.index', ['tab' => 'inventory'])->with('success', 'Added variant "'.$validated['label'].'" to '.$product->name.'.');
+    }
+
     public function updateVariant(Request $request, ProductVariant $variant): RedirectResponse
     {
         $validated = $request->validate([
             'price' => ['required', 'numeric', 'min:1'],
             'stock_qty' => ['required', 'integer', 'min:0'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $variant->update($validated);
+        $variant->update([
+            'price' => $validated['price'],
+            'stock_qty' => $validated['stock_qty'],
+            'is_active' => $request->has('is_active') ? $request->boolean('is_active') : $variant->is_active,
+        ]);
 
         return redirect()->route('admin.index', ['tab' => 'inventory'])->with('success', 'Stock and price updated for '.$variant->product->name.' ('.$variant->label.').');
     }
@@ -279,11 +311,29 @@ class AdminPortalController extends Controller
         return redirect()->route('admin.index', ['tab' => 'inventory'])->with('success', 'Category "'.$validated['name'].'" added.');
     }
 
+    public function updateCategory(Request $request, Category $category): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'product_type' => ['required', 'in:drink,merch'],
+            'is_archived' => ['nullable', 'boolean'],
+        ]);
+
+        $category->update([
+            'name' => $validated['name'],
+            'product_type' => $validated['product_type'],
+            'is_archived' => $request->boolean('is_archived'),
+        ]);
+
+        return redirect()->route('admin.index', ['tab' => 'inventory'])->with('success', 'Category "'.$category->name.'" updated.');
+    }
+
     public function updateOrderStatus(Request $request, Order $order): RedirectResponse
     {
         $user = $request->user();
         $validated = $request->validate([
             'status' => ['required', 'in:pending,confirmed,preparing,shipped,delivered,cancelled'],
+            'delivery_status' => ['nullable', 'in:unassigned,assigned,in_transit,delivered'],
             'courier_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'proof_notes' => ['nullable', 'string', 'max:255'],
         ]);
@@ -296,7 +346,7 @@ class AdminPortalController extends Controller
         $delivery = $order->delivery;
         $shouldNotify = false;
 
-        DB::transaction(function () use ($order, $delivery, $validated, $newStatus, &$shouldNotify) {
+        DB::transaction(function () use ($order, $delivery, $validated, $newStatus, $user, &$shouldNotify) {
             $oldStatus = $order->status;
             $order->update(['status' => $newStatus]);
 
@@ -307,12 +357,21 @@ class AdminPortalController extends Controller
                     if ($delivery->status === 'unassigned') {
                         $deliveryUpdate['status'] = 'assigned';
                     }
+                } elseif ($newStatus === 'shipped' && empty($delivery->courier_user_id)) {
+                    $fallbackCourier = $user->role === 'courier'
+                        ? $user->id
+                        : User::where('role', 'courier')->where('is_active', true)->value('id');
+                    if ($fallbackCourier) {
+                        $deliveryUpdate['courier_user_id'] = $fallbackCourier;
+                    }
                 }
-                if (! empty($validated['proof_notes'])) {
+
+                if (array_key_exists('proof_notes', $validated) && $validated['proof_notes'] !== null && $validated['proof_notes'] !== '') {
                     $deliveryUpdate['proof_notes'] = $validated['proof_notes'];
                 }
+
                 if ($newStatus === 'shipped') {
-                    $deliveryUpdate['status'] = 'in_transit';
+                    $deliveryUpdate['status'] = $validated['delivery_status'] ?? 'in_transit';
                     $deliveryUpdate['shipped_at'] = $delivery->shipped_at ?? now();
                     $shouldNotify = true;
                 } elseif ($newStatus === 'delivered') {
@@ -322,7 +381,7 @@ class AdminPortalController extends Controller
                         $order->payment->update(['status' => 'paid', 'paid_at' => now()]);
                     }
                     $shouldNotify = true;
-                } elseif ($newStatus !== $oldStatus && $newStatus === 'confirmed') {
+                } elseif ($newStatus !== $oldStatus && in_array($newStatus, ['confirmed', 'preparing'], true)) {
                     $shouldNotify = true;
                 }
 
@@ -336,7 +395,13 @@ class AdminPortalController extends Controller
             $this->mailService->sendShippingUpdate($order->fresh(['delivery.courier', 'items', 'payment']));
         }
 
-        return redirect()->route('admin.index', ['tab' => 'orders'])->with('success', 'Order #'.$order->order_number.' updated to '.ucfirst($newStatus).'.');
+        $stageLabel = match ($newStatus) {
+            'shipped' => ($validated['delivery_status'] ?? null) === 'assigned' ? 'Shipped (Courier Assigned)' : 'Courier Tracking (In Transit)',
+            'delivered' => 'Delivered (Courier Confirmed)',
+            default => ucfirst($newStatus),
+        };
+
+        return redirect()->route('admin.index', ['tab' => 'orders'])->with('success', 'Order #'.$order->order_number.' updated to '.$stageLabel.'.');
     }
 
     public function processReturn(Request $request, ReturnRequest $returnRequest): RedirectResponse
@@ -398,7 +463,7 @@ class AdminPortalController extends Controller
     public function updateUserRole(Request $request, User $user): RedirectResponse
     {
         $validated = $request->validate([
-            'role' => ['required', 'in:customer,admin,staff,courier'],
+            'role' => ['required', 'in:customer,admin,courier'],
             'is_active' => ['required', 'boolean'],
         ]);
 
@@ -413,7 +478,7 @@ class AdminPortalController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:150', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:32'],
-            'role' => ['required', 'in:admin,staff,courier'],
+            'role' => ['required', 'in:admin,courier'],
             'password' => ['required', 'string', 'min:8'],
         ]);
 

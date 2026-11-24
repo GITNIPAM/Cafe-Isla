@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Category;
 use App\Models\EmailLog;
 use App\Models\Order;
 use App\Models\Product;
@@ -45,6 +46,8 @@ class CafeIslaFlowTest extends TestCase
             ->assertDontSee('Urbiztondo Morning Matcha');
 
         $this->get('/diagrams')->assertStatus(200)->assertSee('Normalized Relational Schema');
+        $this->get('/track?order=CI-2026-1003')->assertStatus(200)->assertSee('TRK-1003-ISLA');
+        $this->get('/track?order=TRK-1003-ISLA')->assertStatus(200)->assertSee('CI-2026-1003');
     }
 
     public function test_bcrypt_registration_and_rbac_portal_permissions(): void
@@ -65,19 +68,20 @@ class CafeIslaFlowTest extends TestCase
         // Customer cannot enter admin portal
         $this->actingAs($newUser)->get('/admin')->assertStatus(403);
 
-        // Courier can access /admin orders but cannot create products
+        // Courier can access /admin orders but cannot create products or team members
         $courier = User::where('email', 'rider@cafeisla.ph')->firstOrFail();
         $this->actingAs($courier)->get('/admin')->assertStatus(200)->assertSee('Courier Dispatch');
         $this->actingAs($courier)->post('/admin/categories', ['name' => 'Blocked', 'product_type' => 'drink'])->assertStatus(403);
-
-        // Staff cannot create RBAC team members
-        $staff = User::where('email', 'barista@cafeisla.ph')->firstOrFail();
-        $this->actingAs($staff)->post('/admin/team', [
+        $this->actingAs($courier)->post('/admin/team', [
             'name' => 'Blocked',
             'email' => 'b@cafeisla.ph',
             'role' => 'admin',
             'password' => 'Password123!',
         ])->assertStatus(403);
+
+        // Removed Staff Barista portal: staff account cannot access /admin
+        $staff = User::where('email', 'barista@cafeisla.ph')->firstOrFail();
+        $this->actingAs($staff)->get('/admin')->assertStatus(403);
     }
 
     public function test_persistent_bag_coupon_checkout_shipping_and_cancellation(): void
@@ -102,6 +106,21 @@ class CafeIslaFlowTest extends TestCase
             'email' => 'customer@cafeisla.ph',
             'password' => 'Isla2026!',
         ])->assertRedirect('/account');
+
+        // Reject unsupported payment method (only gcash & cod allowed)
+        $this->post('/checkout', [
+            'billing_name' => 'Aria Mendoza',
+            'billing_email' => 'customer@cafeisla.ph',
+            'billing_phone' => '0917-555-0188',
+            'shipping_recipient' => 'Aria Mendoza',
+            'shipping_phone' => '0917-555-0188',
+            'shipping_address_line' => '18 Urbiztondo Coastal Lane',
+            'shipping_city' => 'San Juan',
+            'shipping_province' => 'La Union',
+            'shipping_postal_code' => '2514',
+            'delivery_zone' => 'local_express',
+            'payment_method' => 'maya_card',
+        ])->assertSessionHasErrors('payment_method');
 
         // Checkout with local express delivery
         $checkoutRes = $this->post('/checkout', [
@@ -234,5 +253,76 @@ class CafeIslaFlowTest extends TestCase
         $this->assertFileExists(public_path($created->image_path));
 
         @unlink(public_path($created->image_path));
+    }
+
+    public function test_admin_can_manage_categories_variants_and_inspect_customer_history(): void
+    {
+        $admin = User::where('email', 'admin@cafeisla.ph')->firstOrFail();
+        $category = Category::firstOrFail();
+
+        $this->actingAs($admin)->patch('/admin/categories/'.$category->id, [
+            'name' => 'Ceremonial Matcha Archive',
+            'product_type' => 'drink',
+            'is_archived' => '1',
+        ])->assertRedirect('/admin?tab=inventory');
+
+        $this->assertTrue((bool) $category->fresh()->is_archived);
+        $this->assertEquals('Ceremonial Matcha Archive', $category->fresh()->name);
+
+        $product = Product::firstOrFail();
+        $this->actingAs($admin)->post('/admin/products/'.$product->id.'/variants', [
+            'label' => 'Iced 20oz Pitcher',
+            'serve_temp' => 'iced',
+            'price' => 260,
+            'stock_qty' => 8,
+        ])->assertRedirect('/admin?tab=inventory');
+
+        $this->assertDatabaseHas('product_variants', [
+            'product_id' => $product->id,
+            'label' => 'Iced 20oz Pitcher',
+            'stock_qty' => 8,
+        ]);
+
+        $teamView = $this->actingAs($admin)->get('/admin?tab=team');
+        $teamView->assertStatus(200);
+        $teamView->assertSee('CI-2026-1001');
+        $teamView->assertSee('Urbiztondo Coastal Lane');
+        $teamView->assertSee('spill_refund');
+    }
+
+    public function test_order_fulfillment_pipeline_steps_progress_linearly(): void
+    {
+        $admin = User::where('email', 'admin@cafeisla.ph')->firstOrFail();
+        $courier = User::where('email', 'rider@cafeisla.ph')->firstOrFail();
+        $order = Order::where('order_number', 'CI-2026-1003')->firstOrFail();
+
+        $this->actingAs($admin)->patch('/admin/orders/'.$order->id, ['status' => 'confirmed'])->assertRedirect('/admin?tab=orders');
+        $this->assertEquals('confirmed', $order->fresh()->status);
+
+        $this->actingAs($admin)->patch('/admin/orders/'.$order->id, ['status' => 'preparing'])->assertRedirect('/admin?tab=orders');
+        $this->assertEquals('preparing', $order->fresh()->status);
+
+        $this->actingAs($admin)->patch('/admin/orders/'.$order->id, [
+            'status' => 'shipped',
+            'delivery_status' => 'assigned',
+            'courier_user_id' => $courier->id,
+        ])->assertRedirect('/admin?tab=orders');
+        $this->assertEquals('shipped', $order->fresh()->status);
+        $this->assertEquals('assigned', $order->fresh()->delivery->status);
+
+        $this->actingAs($courier)->patch('/admin/orders/'.$order->id, [
+            'status' => 'shipped',
+            'delivery_status' => 'in_transit',
+            'proof_notes' => 'Rider picked up at San Juan bar',
+        ])->assertRedirect('/admin?tab=orders');
+        $this->assertEquals('in_transit', $order->fresh()->delivery->status);
+
+        $this->actingAs($courier)->patch('/admin/orders/'.$order->id, [
+            'status' => 'delivered',
+            'delivery_status' => 'delivered',
+            'proof_notes' => 'Handed to recipient',
+        ])->assertRedirect('/admin?tab=orders');
+        $this->assertEquals('delivered', $order->fresh()->status);
+        $this->assertEquals('delivered', $order->fresh()->delivery->status);
     }
 }

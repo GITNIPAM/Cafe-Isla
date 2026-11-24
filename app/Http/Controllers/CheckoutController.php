@@ -71,7 +71,7 @@ class CheckoutController extends Controller
             'shipping_province' => ['required_without:saved_address_id', 'nullable', 'string', 'max:120'],
             'shipping_postal_code' => ['required_without:saved_address_id', 'nullable', 'string', 'max:20'],
             'delivery_zone' => ['required', 'in:local_express,provincial_parcel'],
-            'payment_method' => ['required', 'in:gcash,maya_card,cod'],
+            'payment_method' => ['required', 'in:gcash,cod'],
             'payment_account_ref' => ['nullable', 'string', 'max:80'],
             'order_notes' => ['nullable', 'string', 'max:500'],
             'save_address' => ['nullable', 'boolean'],
@@ -208,11 +208,13 @@ class CheckoutController extends Controller
                     ]);
                 }
 
-                $isPrepaid = in_array($validated['payment_method'], ['gcash', 'maya_card'], true);
+                $isPrepaid = $validated['payment_method'] === 'gcash';
                 Payment::create([
                     'order_id' => $order->id,
                     'method' => $validated['payment_method'],
-                    'reference_number' => $validated['payment_account_ref'] ?: 'SIM-'.strtoupper(Str::random(8)),
+                    'reference_number' => $isPrepaid
+                        ? ($validated['payment_account_ref'] ?: 'GCASH-'.strtoupper(Str::random(6)))
+                        : 'COD-'.strtoupper(Str::random(6)),
                     'amount' => $grandTotal,
                     'status' => $isPrepaid ? 'paid' : 'pending',
                     'paid_at' => $isPrepaid ? now() : null,
