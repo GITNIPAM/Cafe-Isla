@@ -52,12 +52,21 @@
                                         </div>
                                     </div>
 
-                                    <ul style="margin:0.75rem 0;padding-left:1.15rem;font-size:0.9rem;">
+                                    <ul class="order-item-list" style="font-size:0.9rem;">
                                         @foreach($order->items as $item)
-                                            <li>
-                                                {{ $item->quantity }}&times; {{ $item->product_name_snapshot }} ({{ $item->variant_label_snapshot }})
-                                                &mdash; <span class="tabular" style="font-family:var(--font-mono);">₱{{ number_format((float) $item->line_total, 2) }}</span>
-                                                @if($item->custom_notes)<br><span>{{ $item->custom_notes }}</span>@endif
+                                            <li class="order-item-row">
+                                                @if($item->product)
+                                                    <img src="{{ $item->product->imageUrl() }}" alt="{{ $item->product_name_snapshot }}" class="order-item-thumb">
+                                                @endif
+                                                <div>
+                                                    <div>
+                                                        {{ $item->quantity }}&times; {{ $item->product_name_snapshot }} ({{ $item->variant_label_snapshot }})
+                                                        &mdash; <span class="tabular" style="font-family:var(--font-mono);">₱{{ number_format((float) $item->line_total, 2) }}</span>
+                                                    </div>
+                                                    @if($item->custom_notes)
+                                                        <div style="font-size:0.82rem;color:var(--taupe-muted);">{{ $item->custom_notes }}</div>
+                                                    @endif
+                                                </div>
                                             </li>
                                         @endforeach
                                     </ul>
@@ -66,6 +75,11 @@
                                         <span>Tracking: {{ $order->delivery?->tracking_number ?? 'Preparing' }} &middot; {{ $order->shipping_address_line }}, {{ $order->shipping_city }}</span>
                                         <strong class="tabular" style="color:var(--espresso-ink);">Total: ₱{{ number_format((float) $order->grand_total, 2) }}</strong>
                                     </div>
+                                    @if($order->delivery?->proof_notes)
+                                        <div style="margin-top:0.35rem;font-family:var(--font-mono);font-size:0.8rem;color:var(--canopy-deep);">
+                                            <strong>Rider Note:</strong> {{ $order->delivery->proof_notes }}
+                                        </div>
+                                    @endif
 
                                     @if(! in_array($order->status, ['cancelled', 'returned'], true))
                                         @php
@@ -114,10 +128,10 @@
                                             </form>
                                         @endif
 
-                                        @if($order->canRequestReturnByCustomer())
+                                        @if($order->status !== 'delivered' && $order->canRequestReturnByCustomer() && $order->returnRequests->isEmpty())
                                             <details style="width:100%;border-top:1px solid var(--hairline);padding-top:0.65rem;">
                                                 <summary style="cursor:pointer;font-family:var(--font-sans);font-size:0.74rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">
-                                                    Request Return or Spill Refund
+                                                    Request Return / Refund
                                                 </summary>
                                                 <form method="POST" action="{{ route('account.orders.return', $order) }}" class="form-stack" style="margin-top:0.75rem;">
                                                     @csrf
@@ -128,7 +142,7 @@
                                                                 <option value="">Entire Order</option>
                                                                 @foreach($order->items as $item)
                                                                     <option value="{{ $item->id }}">
-                                                                        {{ $item->product_name_snapshot }} ({{ $item->is_perishable ? 'Drink · Spill Refund' : 'Merch · Restock Return' }})
+                                                                        {{ $item->product_name_snapshot }} ({{ $item->is_perishable ? 'Drink · Refund Only' : 'Merch · Restock Return' }})
                                                                     </option>
                                                                 @endforeach
                                                             </select>
@@ -137,11 +151,11 @@
                                                             <label class="field-label">Request Type</label>
                                                             <select name="request_type" class="field-control" required>
                                                                 <option value="return">Merch Return / Size Exchange</option>
-                                                                <option value="spill_refund">Drink Quality / Transit Spill Refund</option>
+                                                                <option value="spill_refund">Refund Request</option>
                                                             </select>
                                                         </div>
                                                     </div>
-                                                    <input type="text" name="reason" required placeholder="Short reason (e.g. Sizing swap or cup seal issue)" class="field-control">
+                                                    <input type="text" name="reason" required placeholder="Short reason (e.g. Sizing swap or damaged item)" class="field-control">
                                                     <button type="submit" class="tag-btn tag-btn--sm">Submit Request</button>
                                                 </form>
                                             </details>

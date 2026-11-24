@@ -20,9 +20,6 @@
                     <div class="hero-thesis__actions">
                         <a href="{{ route('menu.index') }}" class="tag-btn">Explore Full Menu</a>
                         <a href="{{ route('menu.index', ['island' => 'la-union']) }}" class="tag-btn tag-btn--canopy">La Union Matcha Bar</a>
-                        @if(config('cafeisla.demo_mode'))
-                            <a href="{{ route('diagrams.index') }}" class="tag-btn tag-btn--outline">ERD &amp; Use Cases</a>
-                        @endif
                     </div>
                     <span class="hero-thesis__meta">
                         Four Island Chapters &middot; Fresh Rider Express (Drinks) &amp; Nationwide Parcel (Isla Merch)

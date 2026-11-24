@@ -310,7 +310,14 @@ class CheckoutController extends Controller
             return $hasPerishables ? 'Fresh drinks require Local Express. Remove drinks to ship merch by parcel.' : null;
         }
 
-        $normalize = fn (string $area) => Str::of($area)->ascii()->lower()->squish()->replaceMatches('/\s*,\s*/', ',')->toString();
+        $normalize = fn (string $area) => Str::of($area)
+            ->ascii()
+            ->lower()
+            ->replaceMatches('/\([^)]*\)/', '')
+            ->replaceMatches('/\bcity\b/i', '')
+            ->squish()
+            ->replaceMatches('/\s*,\s*/', ',')
+            ->toString();
         $areas = array_map($normalize, config('cafeisla.local_delivery_areas', []));
 
         return in_array($normalize($city.','.$province), $areas, true)

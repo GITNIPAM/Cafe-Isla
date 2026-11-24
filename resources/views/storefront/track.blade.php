@@ -7,11 +7,7 @@
         <div class="container">
             <h1 class="page-intro__title">Track Your Archipelago Order</h1>
             <p class="page-intro__lead">
-<<<<<<< HEAD
                 Enter any Café Isla order number (<strong>CI-2026-1003</strong>) or tracking number (<strong>TRK-1003-ISLA</strong>) to check live prep and rider updates.
-=======
-                Enter the order or tracking number from your receipt or <a href="{{ route('account.index') }}">account</a> to check prep and delivery updates.
->>>>>>> 3fd5ec3e2ff9dfbca64583b442277f949a382b08
             </p>
         </div>
     </section>
@@ -19,11 +15,7 @@
     <section class="container operate-main">
         <div class="ledger-panel" style="max-width:760px;">
             <form method="GET" action="{{ route('orders.track') }}" style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-<<<<<<< HEAD
-                <input type="text" name="order" value="{{ $orderNumber }}" placeholder="Order # or Tracking # (e.g. CI-2026-1003 or TRK-1003-ISLA)" class="field-control" style="flex:1;" required>
-=======
-                <input type="text" name="order" value="{{ $orderNumber }}" aria-label="Order or tracking number" placeholder="Enter order or tracking number" class="field-control" style="flex:1;" required>
->>>>>>> 3fd5ec3e2ff9dfbca64583b442277f949a382b08
+                <input type="text" name="order" value="{{ $orderNumber }}" aria-label="Order or tracking number" placeholder="Order # or Tracking # (e.g. CI-2026-1003 or TRK-1003-ISLA)" class="field-control" style="flex:1;" required>
                 <button type="submit" class="tag-btn tag-btn--canopy">Track Order</button>
             </form>
 
@@ -43,6 +35,11 @@
                         Carrier: {{ $order->delivery?->carrier_name }} &middot;
                         Courier: {{ $order->delivery?->courier?->name ?? 'Awaiting dispatch' }}
                     </p>
+                    @if($order->delivery?->proof_notes)
+                        <p style="font-family:var(--font-mono);font-size:0.84rem;color:var(--canopy-deep);margin-top:0.35rem;">
+                            <strong>Latest Rider Note:</strong> {{ $order->delivery->proof_notes }}
+                        </p>
+                    @endif
 
                     @php
                         $delStatus = $order->delivery?->status ?? 'unassigned';
@@ -66,9 +63,19 @@
 
                     <div style="margin-top:1.25rem;">
                         <strong style="font-family:var(--font-sans);font-size:0.78rem;text-transform:uppercase;">Items Ordered</strong>
-                        <ul style="margin:0.5rem 0 0 0;padding-left:1.15rem;font-size:0.92rem;">
+                        <ul class="order-item-list">
                             @foreach($order->items as $item)
-                                <li>{{ $item->quantity }}&times; {{ $item->product_name_snapshot }} ({{ $item->variant_label_snapshot }})</li>
+                                <li class="order-item-row">
+                                    @if($item->product)
+                                        <img src="{{ $item->product->imageUrl() }}" alt="{{ $item->product_name_snapshot }}" class="order-item-thumb">
+                                    @endif
+                                    <div>
+                                        <div>{{ $item->quantity }}&times; {{ $item->product_name_snapshot }} ({{ $item->variant_label_snapshot }})</div>
+                                        @if($item->custom_notes)
+                                            <div style="font-size:0.82rem;color:var(--taupe-muted);">{{ $item->custom_notes }}</div>
+                                        @endif
+                                    </div>
+                                </li>
                             @endforeach
                         </ul>
                     </div>

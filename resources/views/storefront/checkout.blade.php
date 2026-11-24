@@ -120,13 +120,8 @@
 
                         <div class="form-row-2">
                             <div class="field-group" id="gcashRefGroup" style="{{ old('payment_method', 'gcash') === 'cod' ? 'display:none;' : '' }}">
-<<<<<<< HEAD
                                 <label for="payment_account_ref" class="field-label">GCash Ref / Mobile Last 4</label>
                                 <input type="text" id="payment_account_ref" name="payment_account_ref" value="{{ old('payment_account_ref', 'GCASH-8841') }}" class="field-control">
-=======
-                                <label for="payment_account_ref" class="field-label">Demo Payment Reference (Optional)</label>
-                                <input type="text" id="payment_account_ref" name="payment_account_ref" value="{{ old('payment_account_ref') }}" placeholder="e.g. DEMO-8841" class="field-control">
->>>>>>> 3fd5ec3e2ff9dfbca64583b442277f949a382b08
                             </div>
                             <div class="field-group">
                                 <label for="order_notes" class="field-label">Barista / Rider Note</label>
@@ -141,12 +136,17 @@
                 <h2 class="ledger-panel__title">Checkout Summary</h2>
                 <div class="form-stack">
                     @foreach($summary['items'] as $item)
-                        <div style="display:flex;justify-content:space-between;gap:0.75rem;padding-bottom:0.6rem;border-bottom:1px solid rgba(246,241,230,0.2);font-size:0.86rem;">
-                            <div>
-                                <strong style="font-family:var(--font-sans);font-size:0.78rem;text-transform:uppercase;">{{ $item['product_name'] }}</strong>
-                                <div style="font-family:var(--font-mono);font-size:0.74rem;opacity:0.78;">
-                                    {{ $item['variant_label'] }} &times; <span data-quote-quantity="{{ $item['id'] }}">{{ $item['quantity'] }}</span>
-                                    @if($item['custom_notes'])<br>{{ $item['custom_notes'] }}@endif
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem;padding-bottom:0.6rem;border-bottom:1px solid rgba(246,241,230,0.2);font-size:0.86rem;">
+                            <div style="display:flex;align-items:center;gap:0.65rem;">
+                                @if(! empty($item['image_url']))
+                                    <img src="{{ $item['image_url'] }}" alt="{{ $item['product_name'] }}" class="order-item-thumb" style="border-color:rgba(246,241,230,0.3);">
+                                @endif
+                                <div>
+                                    <strong style="font-family:var(--font-sans);font-size:0.78rem;text-transform:uppercase;">{{ $item['product_name'] }}</strong>
+                                    <div style="font-family:var(--font-mono);font-size:0.74rem;opacity:0.78;">
+                                        {{ $item['variant_label'] }} &times; <span data-quote-quantity="{{ $item['id'] }}">{{ $item['quantity'] }}</span>
+                                        @if($item['custom_notes'])<br>{{ $item['custom_notes'] }}@endif
+                                    </div>
                                 </div>
                             </div>
                             <span class="tabular" data-quote-item="{{ $item['id'] }}" style="font-family:var(--font-mono);">₱{{ number_format($item['line_total'], 2) }}</span>

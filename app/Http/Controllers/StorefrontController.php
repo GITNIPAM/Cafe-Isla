@@ -132,28 +132,17 @@ class StorefrontController extends Controller
 
     public function track(Request $request): View
     {
-<<<<<<< HEAD
         $orderNumber = trim((string) $request->query('order', ''));
-=======
-        $orderQuery = $request->query('order', '');
-        $orderNumber = is_string($orderQuery) ? trim($orderQuery) : '';
->>>>>>> 3fd5ec3e2ff9dfbca64583b442277f949a382b08
         $lookup = strtoupper(ltrim($orderNumber, '#'));
         $order = null;
 
         if ($lookup !== '') {
-<<<<<<< HEAD
             $order = $request->user()->orders()
-                ->with(['items', 'payment', 'delivery.courier', 'returnRequests'])
+                ->with(['items.product', 'payment', 'delivery.courier', 'returnRequests'])
                 ->where(function ($query) use ($lookup) {
                     $query->whereRaw('UPPER(order_number) = ?', [$lookup])
                         ->orWhereHas('delivery', fn ($q) => $q->whereRaw('UPPER(tracking_number) = ?', [$lookup]));
                 })
-=======
-            $order = $request->user()->orders()->with(['items', 'delivery.courier'])
-                ->where(fn ($query) => $query->whereRaw('UPPER(order_number) = ?', [$lookup])
-                    ->orWhereHas('delivery', fn ($delivery) => $delivery->whereRaw('UPPER(tracking_number) = ?', [$lookup])))
->>>>>>> 3fd5ec3e2ff9dfbca64583b442277f949a382b08
                 ->first();
         }
 
@@ -169,12 +158,5 @@ class StorefrontController extends Controller
         abort_unless($disk->fileExists($filename), 404);
 
         return response()->file($disk->path($filename), ['X-Content-Type-Options' => 'nosniff']);
-    }
-
-    public function diagrams(): View
-    {
-        abort_unless(config('cafeisla.demo_mode'), 404);
-
-        return view('storefront.diagrams');
     }
 }

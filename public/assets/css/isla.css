@@ -597,12 +597,11 @@ textarea {
 }
 
 .quick-pour-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.75rem 1.25rem;
-  padding: 0.95rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1.05rem 0;
   border-bottom: 1px solid var(--hairline);
-  align-items: center;
 }
 
 .quick-pour-row__name {
@@ -631,7 +630,7 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
 }
 

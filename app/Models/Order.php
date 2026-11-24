@@ -94,6 +94,7 @@ class Order extends Model
 
     public function canRequestReturnByCustomer(): bool
     {
-        return in_array($this->status, ['delivered', 'shipped'], true);
+        return in_array($this->status, ['delivered', 'shipped'], true)
+            && ! $this->returnRequests()->exists();
     }
 }

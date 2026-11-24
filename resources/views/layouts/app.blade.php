@@ -14,6 +14,7 @@
     @stack('styles')
 </head>
 <body id="top">
+    @if(! View::hasSection('operator_shell'))
     <div class="announcement-strip" id="announcementStrip">
         <span class="announcement-strip__text">Code ISLA10 &middot; 10% off archipelago drinks &amp; merch &middot; Free local rider delivery over ₱1,200</span>
         <button type="button" class="announcement-strip__close" id="closeAnnouncement" aria-label="Dismiss announcement">
@@ -42,9 +43,6 @@
                 <a href="{{ route('menu.index') }}" class="site-nav__link {{ request()->routeIs('menu.index') && request('type') !== 'merch' ? 'is-active' : '' }}">Menu</a>
                 <a href="{{ route('menu.index', ['type' => 'merch']) }}" class="site-nav__link {{ request('type') === 'merch' ? 'is-active' : '' }}">Isla Merch</a>
                 <a href="{{ route('orders.track') }}" class="site-nav__link {{ request()->routeIs('orders.track') ? 'is-active' : '' }}">Track</a>
-                @if(config('cafeisla.demo_mode'))
-                    <a href="{{ route('diagrams.index') }}" class="site-nav__link {{ request()->routeIs('diagrams.index') ? 'is-active' : '' }}">Diagrams</a>
-                @endif
             </nav>
 
             <div class="site-actions">
@@ -69,7 +67,9 @@
 
                 @auth
                     @if(auth()->user()->isOperator())
-                        <a href="{{ route('admin.index') }}" class="header-action-btn">Portal ({{ ucfirst(auth()->user()->role) }})</a>
+                        <a href="{{ route('admin.index') }}" class="header-action-btn">
+                            {{ auth()->user()->role === 'courier' ? 'Rider Dispatch' : 'Portal (Admin)' }}
+                        </a>
                     @else
                         <a href="{{ route('account.index') }}" class="header-action-btn">Account</a>
                     @endif
@@ -88,6 +88,7 @@
             </div>
         </div>
     </header>
+    @endif
 
     @if(session('success'))
         <div class="flash-banner flash-banner--success" role="status">
@@ -120,6 +121,7 @@
         @yield('content')
     </main>
 
+    @if(! View::hasSection('operator_shell'))
     <footer class="site-footer">
         <div class="container">
             <div class="footer-grid">
@@ -159,16 +161,10 @@
                         <li><a href="{{ route('cart.index') }}">Persistent Shopping Bag</a></li>
                         <li><a href="{{ route('orders.track') }}">Track Order Status</a></li>
                         <li><a href="{{ route('account.index') }}">Customer Dashboard &amp; Returns</a></li>
-<<<<<<< HEAD
                         <li><a href="{{ route('admin.index') }}">Admin &amp; Courier Portal</a></li>
-=======
->>>>>>> 3fd5ec3e2ff9dfbca64583b442277f949a382b08
                         <li><a href="{{ route('contact') }}">Contact</a></li>
                         <li><a href="{{ route('delivery.policy') }}">Delivery &amp; Returns</a></li>
                         <li><a href="{{ route('privacy') }}">Privacy</a></li>
-                        @if(config('cafeisla.demo_mode'))
-                            <li><a href="{{ route('diagrams.index') }}">ERD, Use Cases &amp; Brand Guide</a></li>
-                        @endif
                     </ul>
                 </div>
 
@@ -192,6 +188,7 @@
             </div>
         </div>
     </footer>
+    @endif
 
     <!-- Slide-Over Shopping Bag Drawer -->
     <div class="drawer-backdrop" id="bagDrawer" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Shopping Bag">

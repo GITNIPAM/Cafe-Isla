@@ -19,7 +19,6 @@ Route::get('/product/{slug}', [StorefrontController::class, 'show'])->name('prod
 Route::get('/uploads/products/{filename}', [StorefrontController::class, 'productImage'])
     ->where('filename', '[A-Za-z0-9][A-Za-z0-9_-]*\.(?:jpe?g|png|webp)')
     ->withoutMiddleware(ShopVisitMiddleware::class);
-Route::get('/diagrams', [StorefrontController::class, 'diagrams'])->name('diagrams.index');
 Route::view('/contact', 'storefront.contact')->name('contact');
 Route::view('/delivery-and-returns', 'storefront.delivery-and-returns')->name('delivery.policy');
 Route::view('/privacy', 'storefront.privacy')->name('privacy');

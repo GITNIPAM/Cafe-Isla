@@ -50,21 +50,10 @@ class CafeIslaFlowTest extends TestCase
             ->assertSee('San Juan Spanish Hojicha')
             ->assertDontSee('Urbiztondo Morning Matcha');
 
-        $this->get('/diagrams')->assertStatus(200)->assertSee('Normalized Relational Schema');
-<<<<<<< HEAD
+        $this->get('/diagrams')->assertNotFound();
         $customer = User::where('email', 'customer@cafeisla.ph')->firstOrFail();
         $this->actingAs($customer)->get('/track?order=CI-2026-1003')->assertStatus(200)->assertSee('TRK-1003-ISLA');
         $this->actingAs($customer)->get('/track?order=TRK-1003-ISLA')->assertStatus(200)->assertSee('CI-2026-1003');
-=======
-
-        $this->get('/product/muni-matcha')->assertStatus(301)
-            ->assertRedirect('/product/urbiztondo-morning-matcha');
-        foreach (Product::all() as $product) {
-            $this->assertFileExists(public_path(parse_url($product->imageUrl(), PHP_URL_PATH)));
-        }
-        $legacy = new Product(['image_path' => 'assets/images/drinks/muni-matcha.jpg']);
-        $this->assertStringEndsWith('/urbiztondo-morning-matcha.jpg', $legacy->imageUrl());
->>>>>>> 3fd5ec3e2ff9dfbca64583b442277f949a382b08
     }
 
     public function test_bcrypt_registration_and_rbac_portal_permissions(): void
@@ -349,7 +338,7 @@ class CafeIslaFlowTest extends TestCase
     public function test_demo_sign_in_and_diagrams_are_hidden_when_demo_mode_is_off(): void
     {
         config(['cafeisla.demo_mode' => false]);
-        $this->get('/')->assertOk()->assertDontSee(route('diagrams.index'));
+        $this->get('/')->assertOk()->assertDontSee('/diagrams');
         $this->get('/auth')->assertOk()->assertDontSee('data-demo-email', false);
         $this->get('/diagrams')->assertNotFound();
     }
