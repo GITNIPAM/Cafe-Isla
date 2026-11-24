@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-24T20:28:00+08:00",
+  "title": "Design System: Café Isla",
+  "extensions": {
+    "colorMeta": {
+      "parchment-ground": { "role": "neutral", "displayName": "Abaca Parchment", "canonical": "#F6F1E6", "tonalRamp": ["#261D18", "#5A4D41", "#8C7D6B", "#B8AA96", "#D4C8B4", "#ECE3D0", "#F6F1E6", "#FBF8F1"] },
+      "canopy-deep": { "role": "primary", "displayName": "Ceremonial Canopy Deep", "canonical": "#1C3127", "tonalRamp": ["#0E1A14", "#15251D", "#1C3127", "#254033", "#3B5E4D", "#6C8E7D", "#B3C9BE", "#E3EDE4"] },
+      "clay-coral": { "role": "primary", "displayName": "Terracotta Clay", "canonical": "#C4553A", "tonalRamp": ["#5E2012", "#85311D", "#A6422A", "#C4553A", "#D87860", "#E8A290", "#F4CCC2", "#FBF0ED"] },
+      "isla-launion": { "role": "secondary", "displayName": "La Union Matcha", "canonical": "#4A6B46", "tonalRamp": ["#1F2E1D", "#31482E", "#4A6B46", "#668A62", "#8AA886", "#B3C8B0", "#D7E4D5", "#EDF3EC"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Editorial hero thesis statement only." },
+      "headline": { "displayName": "Headline", "purpose": "Section titles and island chapter titles." },
+      "body": { "displayName": "Body", "purpose": "Terroir stories and café descriptions." },
+      "label": { "displayName": "Label", "purpose": "Tracked uppercase nav, buttons, and column headers." },
+      "mono": { "displayName": "Mono", "purpose": "Coordinates, tasting notes, and tabular peso pricing." }
+    },
+    "shadows": [
+      { "name": "flat-hairline", "value": "none", "purpose": "System is strictly flat; borders and tonal contrast define elevation." }
+    ],
+    "motion": [
+      { "name": "ease-editorial", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Crisp image scale and tag state transitions." }
+    ],
+    "breakpoints": [
+      { "name": "tablet-grid", "value": "1080px" },
+      { "name": "mobile-nav", "value": "960px" },
+      { "name": "stack-sm", "value": "820px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Tag Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Sharp 0px terracotta tag CTA for storefront conversion actions.",
+      "html": "<button class=\"ds-tag-btn\">EXPLORE FULL MENU</button>",
+      "css": ".ds-tag-btn { display:inline-flex; align-items:center; justify-content:center; padding:0.62rem 1.2rem; border-radius:0; border:1px solid #C4553A; background:#C4553A; color:#FBF8F1; font-family:'Archivo',sans-serif; font-size:0.75rem; font-weight:600; letter-spacing:0.09em; text-transform:uppercase; cursor:pointer; transition:background-color 180ms cubic-bezier(0.22,1,0.36,1); } .ds-tag-btn:hover { background:#A6422A; border-color:#A6422A; } .ds-tag-btn:focus-visible { outline:2px solid #C4553A; outline-offset:3px; }"
+    },
+    {
+      "name": "Canopy Button",
+      "kind": "button",
+      "refersTo": "button-canopy",
+      "description": "Deep ceremonial green button for bag/checkout and admin confirmation actions.",
+      "html": "<button class=\"ds-btn-canopy\">ADD TO SHOPPING BAG</button>",
+      "css": ".ds-btn-canopy { display:inline-flex; align-items:center; justify-content:center; padding:0.62rem 1.2rem; border-radius:0; border:1px solid #1C3127; background:#1C3127; color:#FBF8F1; font-family:'Archivo',sans-serif; font-size:0.75rem; font-weight:600; letter-spacing:0.09em; text-transform:uppercase; cursor:pointer; transition:background-color 180ms ease; } .ds-btn-canopy:hover { background:#254033; } .ds-btn-canopy:focus-visible { outline:2px solid #C4553A; outline-offset:3px; }"
+    },
+    {
+      "name": "Editorial Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Zero-radius crisp ink-bordered form field using monospace tasting/data voice.",
+      "html": "<input class=\"ds-field-control\" type=\"text\" placeholder=\"Matcha, hojicha, linen...\" />",
+      "css": ".ds-field-control { width:100%; padding:0.58rem 0.72rem; border:1px solid #261D18; border-radius:0; background:#FBF8F1; color:#261D18; font-family:'Courier Prime',monospace; font-size:0.82rem; } .ds-field-control:focus-visible { outline:2px solid #C4553A; outline-offset:2px; }"
+    },
+    {
+      "name": "Isla Product Card",
+      "kind": "card",
+      "refersTo": "card-product",
+      "description": "Architectural card pairing 3:3.5 film imagery with corner batch stamps and tabular pricing.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-top\">LA UNION</div><div class=\"ds-card-body\"><strong>DULCE MATCHA</strong><p>Ceremonial-grade matcha, oat milk, sea salt foam.</p><span>₱205</span></div></div>",
+      "css": ".ds-card { border:1px solid #261D18; background:#FBF8F1; width:260px; font-family:'Courier Prime',monospace; } .ds-card-top { background:#4A6B46; color:#FBF8F1; padding:0.35rem 0.6rem; font-family:'Archivo',sans-serif; font-size:0.66rem; font-weight:700; letter-spacing:0.08em; display:inline-block; } .ds-card-body { padding:1rem; display:flex; flex-direction:column; gap:0.45rem; } .ds-card-body strong { font-family:'Archivo',sans-serif; font-size:0.86rem; letter-spacing:0.04em; color:#261D18; } .ds-card-body p { margin:0; font-size:0.76rem; color:#6E6256; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Archipelago Broadsheet & Pour Bar",
+    "overview": "Café Isla pairs the unhurried editorial print-zine warmth of Flora Wellness Cafe with sunlit Philippine coastal materials: abaca parchment paper, honed travertine limestone, ceremonial matcha canopy greens, and roasted espresso ink linework.",
+    "keyCharacteristics": [
+      "Sharp 0px architectural framing across every photograph, button, input, drawer, and card",
+      "Three-voice typography pairing italic Caslon display/serif prose, tracked uppercase Archivo UI chrome, and Courier Prime tasting notes and tabular numbers",
+      "Restrained warm paper palette anchored by deep canopy green (#1C3127) and terracotta clay (#C4553A)"
+    ],
+    "rules": [
+      { "name": "The Sharp-Edge Material Rule", "body": "No rounded SaaS pills or floating soft shadows appear on photographic frames, cards, or primary CTAs; structural hierarchy comes strictly from 1px solid #261D18 borders and surface value shifts.", "section": "colors" },
+      { "name": "The Heading-Leads Rule", "body": "Never place tiny uppercase kicker/eyebrow labels above section or product headings; place island coordinates, SKUs, and timestamps inline beside or below the heading.", "section": "typography" }
+    ],
+    "dos": [
+      "Do keep 0px sharp corners across all imagery, buttons, cards, and form controls.",
+      "Do preserve white-space: nowrap on single-row navigation links and font-variant-numeric: tabular-nums on every price, quantity, and metric.",
+      "Do pair Libre Caslon italic headings with tracked uppercase Archivo actions and Courier Prime metadata."
+    ],
+    "donts": [
+      "Don't add eyebrow/kicker labels above headings or 01 / 02 decorative numbering.",
+      "Don't replace crisp inline geometric SVG icons with emoji or Unicode glyph shortcuts.",
+      "Don't introduce drop shadows, rounded pill cards, or gradient text anywhere on the canvas."
+    ]
+  }
+}

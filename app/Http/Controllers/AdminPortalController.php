@@ -1,0 +1,431 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Category;
+use App\Models\IslandSeries;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\ProductVariant;
+use App\Models\ReturnRequest;
+use App\Models\ShopVisit;
+use App\Models\User;
+use App\Services\DualChannelMailService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
+
+class AdminPortalController extends Controller
+{
+    public function __construct(protected DualChannelMailService $mailService) {}
+
+    public function index(Request $request): View
+    {
+        $user = $request->user();
+        $role = $user->role;
+
+        $defaultTab = match ($role) {
+            'courier' => 'orders',
+            'staff' => 'orders',
+            default => 'analytics',
+        };
+
+        $activeTab = $request->query('tab', $defaultTab);
+        if ($role === 'courier') {
+            $activeTab = 'orders';
+        } elseif ($role === 'staff' && in_array($activeTab, ['analytics', 'team'], true)) {
+            $activeTab = 'orders';
+        }
+
+        // Analytics Data (Admin)
+        $paidRevenue = (float) Order::whereNotIn('status', ['cancelled', 'returned'])->sum('grand_total');
+        $totalOrders = Order::count();
+        $pendingOrdersCount = Order::whereIn('status', ['pending', 'confirmed', 'preparing'])->count();
+        $lowStockVariants = ProductVariant::with('product.islandSeries')
+            ->where('is_active', true)
+            ->whereColumn('stock_qty', '<=', 'low_stock_threshold')
+            ->orderBy('stock_qty')
+            ->get();
+
+        $topProducts = OrderItem::select('product_name_snapshot', DB::raw('SUM(quantity) as units_sold'), DB::raw('SUM(line_total) as gross_sales'))
+            ->whereHas('order', fn ($q) => $q->whereNotIn('status', ['cancelled', 'returned']))
+            ->groupBy('product_name_snapshot')
+            ->orderByDesc('units_sold')
+            ->limit(6)
+            ->get();
+
+        $totalVisits = max(1, ShopVisit::count());
+        $cartVisits = ShopVisit::where('had_cart', true)->count();
+        $convertedVisits = ShopVisit::whereNotNull('converted_order_id')->count();
+        $conversionRate = round(($convertedVisits / $totalVisits) * 100, 1);
+        $abandonmentRate = $cartVisits > 0
+            ? round((($cartVisits - $convertedVisits) / $cartVisits) * 100, 1)
+            : 0.0;
+
+        // Orders & Couriers
+        $ordersQuery = Order::with(['user', 'items.product', 'payment', 'delivery.courier', 'returnRequests'])
+            ->orderByDesc('placed_at');
+
+        if ($role === 'courier') {
+            $ordersQuery->whereHas('delivery', function ($q) use ($user) {
+                $q->where('courier_user_id', $user->id)
+                    ->orWhereIn('status', ['assigned', 'in_transit', 'delivered']);
+            });
+        }
+
+        $orders = $ordersQuery->get();
+        $couriers = User::where('role', 'courier')->where('is_active', true)->orderBy('name')->get();
+
+        // Inventory Data
+        $products = Product::with(['islandSeries', 'category', 'variants'])->orderBy('id', 'desc')->get();
+        $islands = IslandSeries::orderBy('sort_order')->get();
+        $categories = Category::orderBy('sort_order')->get();
+
+        // Return Requests
+        $returns = ReturnRequest::with(['order', 'orderItem.product', 'user', 'processor'])
+            ->latest('created_at')
+            ->get();
+
+        // Team & Customers (Admin only)
+        $customers = User::where('role', 'customer')
+            ->withCount('orders')
+            ->withSum(['orders' => fn ($q) => $q->whereNotIn('status', ['cancelled', 'returned'])], 'grand_total')
+            ->orderBy('name')
+            ->get();
+
+        $teamMembers = User::whereIn('role', ['admin', 'staff', 'courier'])
+            ->orderBy('role')
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.index', [
+            'user' => $user,
+            'role' => $role,
+            'activeTab' => $activeTab,
+            'metrics' => [
+                'revenue' => $paidRevenue,
+                'orders' => $totalOrders,
+                'pending_orders' => $pendingOrdersCount,
+                'low_stock_count' => $lowStockVariants->count(),
+                'total_visits' => $totalVisits,
+                'cart_visits' => $cartVisits,
+                'converted_visits' => $convertedVisits,
+                'conversion_rate' => $conversionRate,
+                'abandonment_rate' => $abandonmentRate,
+            ],
+            'lowStockVariants' => $lowStockVariants,
+            'topProducts' => $topProducts,
+            'orders' => $orders,
+            'couriers' => $couriers,
+            'products' => $products,
+            'islands' => $islands,
+            'categories' => $categories,
+            'returns' => $returns,
+            'customers' => $customers,
+            'teamMembers' => $teamMembers,
+        ]);
+    }
+
+    public function storeProduct(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'island_series_id' => ['required', 'integer', 'exists:island_series,id'],
+            'category_id' => ['required', 'integer', 'exists:categories,id'],
+            'sku' => ['required', 'string', 'max:40', 'unique:products,sku'],
+            'name' => ['required', 'string', 'max:150'],
+            'short_excerpt' => ['required', 'string', 'max:255'],
+            'description' => ['required', 'string'],
+            'tasting_notes' => ['nullable', 'string', 'max:255'],
+            'is_perishable' => ['required', 'boolean'],
+            'base_price' => ['required', 'numeric', 'min:1'],
+            'variant_label' => ['required', 'string', 'max:80'],
+            'serve_temp' => ['required', 'in:hot,iced,na'],
+            'stock_qty' => ['required', 'integer', 'min:0'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
+
+        $imagePath = 'assets/images/editorial/menu-table-ritual.jpg';
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $dir = public_path('uploads/products');
+            if (! is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            $filename = Str::slug($validated['name']).'-'.time().'.'.$file->getClientOriginalExtension();
+            $file->move($dir, $filename);
+            $imagePath = 'uploads/products/'.$filename;
+        }
+
+        $slug = Str::slug($validated['name']);
+        if (Product::where('slug', $slug)->exists()) {
+            $slug .= '-'.strtolower(Str::random(4));
+        }
+
+        $product = Product::create([
+            'island_series_id' => $validated['island_series_id'],
+            'category_id' => $validated['category_id'],
+            'sku' => strtoupper(trim($validated['sku'])),
+            'name' => $validated['name'],
+            'slug' => $slug,
+            'short_excerpt' => $validated['short_excerpt'],
+            'description' => $validated['description'],
+            'tasting_notes' => $validated['tasting_notes'] ?? null,
+            'is_perishable' => (bool) $validated['is_perishable'],
+            'base_price' => $validated['base_price'],
+            'image_path' => $imagePath,
+            'is_featured' => false,
+            'is_archived' => false,
+        ]);
+
+        ProductVariant::create([
+            'product_id' => $product->id,
+            'variant_code' => strtoupper(trim($validated['sku'])).'-V1',
+            'label' => $validated['variant_label'],
+            'serve_temp' => $validated['serve_temp'],
+            'size_option' => $validated['variant_label'],
+            'price' => $validated['base_price'],
+            'stock_qty' => $validated['stock_qty'],
+            'low_stock_threshold' => 5,
+            'is_active' => true,
+        ]);
+
+        return redirect()->route('admin.index', ['tab' => 'inventory'])->with('success', 'Product "'.$product->name.'" created in catalog.');
+    }
+
+    public function updateProduct(Request $request, Product $product): RedirectResponse
+    {
+        $validated = $request->validate([
+            'island_series_id' => ['required', 'integer', 'exists:island_series,id'],
+            'category_id' => ['required', 'integer', 'exists:categories,id'],
+            'name' => ['required', 'string', 'max:150'],
+            'short_excerpt' => ['required', 'string', 'max:255'],
+            'base_price' => ['required', 'numeric', 'min:1'],
+            'is_archived' => ['nullable', 'boolean'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
+
+        $imagePath = $product->image_path;
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $dir = public_path('uploads/products');
+            if (! is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            $filename = Str::slug($validated['name']).'-'.time().'.'.$file->getClientOriginalExtension();
+            $file->move($dir, $filename);
+            $imagePath = 'uploads/products/'.$filename;
+        }
+
+        $product->update([
+            'island_series_id' => $validated['island_series_id'],
+            'category_id' => $validated['category_id'],
+            'name' => $validated['name'],
+            'short_excerpt' => $validated['short_excerpt'],
+            'base_price' => $validated['base_price'],
+            'is_archived' => $request->boolean('is_archived'),
+            'image_path' => $imagePath,
+        ]);
+
+        return redirect()->route('admin.index', ['tab' => 'inventory'])->with('success', 'Updated "'.$product->name.'".');
+    }
+
+    public function updateVariant(Request $request, ProductVariant $variant): RedirectResponse
+    {
+        $validated = $request->validate([
+            'price' => ['required', 'numeric', 'min:1'],
+            'stock_qty' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $variant->update($validated);
+
+        return redirect()->route('admin.index', ['tab' => 'inventory'])->with('success', 'Stock and price updated for '.$variant->product->name.' ('.$variant->label.').');
+    }
+
+    public function deleteProduct(Product $product): RedirectResponse
+    {
+        if ($product->orderItems()->exists()) {
+            $product->update(['is_archived' => true]);
+
+            return redirect()->route('admin.index', ['tab' => 'inventory'])->with('info', '"'.$product->name.'" has order history so it was archived instead of permanently deleted.');
+        }
+
+        $name = $product->name;
+        $product->delete();
+
+        return redirect()->route('admin.index', ['tab' => 'inventory'])->with('success', 'Deleted "'.$name.'" permanently.');
+    }
+
+    public function storeCategory(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'product_type' => ['required', 'in:drink,merch'],
+            'description' => ['nullable', 'string', 'max:300'],
+        ]);
+
+        Category::create([
+            'name' => $validated['name'],
+            'slug' => Str::slug($validated['name']).'-'.strtolower(Str::random(3)),
+            'product_type' => $validated['product_type'],
+            'description' => $validated['description'] ?? null,
+            'sort_order' => Category::count() + 1,
+            'is_archived' => false,
+        ]);
+
+        return redirect()->route('admin.index', ['tab' => 'inventory'])->with('success', 'Category "'.$validated['name'].'" added.');
+    }
+
+    public function updateOrderStatus(Request $request, Order $order): RedirectResponse
+    {
+        $user = $request->user();
+        $validated = $request->validate([
+            'status' => ['required', 'in:pending,confirmed,preparing,shipped,delivered,cancelled'],
+            'courier_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'proof_notes' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $newStatus = $validated['status'];
+        if ($user->role === 'courier' && ! in_array($newStatus, ['shipped', 'delivered'], true)) {
+            abort(403, 'Couriers can only mark orders In Transit or Delivered.');
+        }
+
+        $delivery = $order->delivery;
+        $shouldNotify = false;
+
+        DB::transaction(function () use ($order, $delivery, $validated, $newStatus, &$shouldNotify) {
+            $oldStatus = $order->status;
+            $order->update(['status' => $newStatus]);
+
+            if ($delivery) {
+                $deliveryUpdate = [];
+                if (! empty($validated['courier_user_id'])) {
+                    $deliveryUpdate['courier_user_id'] = (int) $validated['courier_user_id'];
+                    if ($delivery->status === 'unassigned') {
+                        $deliveryUpdate['status'] = 'assigned';
+                    }
+                }
+                if (! empty($validated['proof_notes'])) {
+                    $deliveryUpdate['proof_notes'] = $validated['proof_notes'];
+                }
+                if ($newStatus === 'shipped') {
+                    $deliveryUpdate['status'] = 'in_transit';
+                    $deliveryUpdate['shipped_at'] = $delivery->shipped_at ?? now();
+                    $shouldNotify = true;
+                } elseif ($newStatus === 'delivered') {
+                    $deliveryUpdate['status'] = 'delivered';
+                    $deliveryUpdate['delivered_at'] = now();
+                    if ($order->payment && $order->payment->method === 'cod' && $order->payment->status === 'pending') {
+                        $order->payment->update(['status' => 'paid', 'paid_at' => now()]);
+                    }
+                    $shouldNotify = true;
+                } elseif ($newStatus !== $oldStatus && $newStatus === 'confirmed') {
+                    $shouldNotify = true;
+                }
+
+                if (! empty($deliveryUpdate)) {
+                    $delivery->update($deliveryUpdate);
+                }
+            }
+        });
+
+        if ($shouldNotify) {
+            $this->mailService->sendShippingUpdate($order->fresh(['delivery.courier', 'items', 'payment']));
+        }
+
+        return redirect()->route('admin.index', ['tab' => 'orders'])->with('success', 'Order #'.$order->order_number.' updated to '.ucfirst($newStatus).'.');
+    }
+
+    public function processReturn(Request $request, ReturnRequest $returnRequest): RedirectResponse
+    {
+        $validated = $request->validate([
+            'decision' => ['required', 'in:approved,rejected'],
+            'admin_remarks' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if ($returnRequest->status !== 'pending') {
+            return redirect()->route('admin.index', ['tab' => 'returns'])->with('info', 'This return request has already been processed.');
+        }
+
+        DB::transaction(function () use ($request, $returnRequest, $validated) {
+            $order = $returnRequest->order;
+            $restocked = false;
+
+            if ($validated['decision'] === 'approved') {
+                if ($returnRequest->orderItem) {
+                    $item = $returnRequest->orderItem;
+                    if (! $item->is_perishable && $item->variant) {
+                        $item->variant->increment('stock_qty', $item->quantity);
+                        $restocked = true;
+                    }
+                } else {
+                    foreach ($order->items as $item) {
+                        if (! $item->is_perishable && $item->variant) {
+                            $item->variant->increment('stock_qty', $item->quantity);
+                            $restocked = true;
+                        }
+                    }
+                }
+
+                if ($order->payment) {
+                    $order->payment->update([
+                        'status' => 'refunded',
+                        'refunded_at' => now(),
+                    ]);
+                }
+
+                if (! $returnRequest->orderItem || $order->items->count() === 1) {
+                    $order->update(['status' => 'returned']);
+                }
+            }
+
+            $returnRequest->update([
+                'status' => $validated['decision'],
+                'restock_applied' => $restocked,
+                'processed_by' => $request->user()->id,
+                'admin_remarks' => $validated['admin_remarks'] ?? ($restocked ? 'Approved & non-perishable Isla Merch restocked.' : 'Approved beverage refund without restock.'),
+            ]);
+        });
+
+        $this->mailService->sendReturnUpdate($returnRequest->fresh(['order', 'orderItem']));
+
+        return redirect()->route('admin.index', ['tab' => 'returns'])->with('success', 'Return #'.$returnRequest->id.' marked '.ucfirst($validated['decision']).'.');
+    }
+
+    public function updateUserRole(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'role' => ['required', 'in:customer,admin,staff,courier'],
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $user->update($validated);
+
+        return redirect()->route('admin.index', ['tab' => 'team'])->with('success', 'Permissions updated for '.$user->name.'.');
+    }
+
+    public function storeTeamMember(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:150', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:32'],
+            'role' => ['required', 'in:admin,staff,courier'],
+            'password' => ['required', 'string', 'min:8'],
+        ]);
+
+        User::create([
+            'name' => $validated['name'],
+            'email' => strtolower(trim($validated['email'])),
+            'phone' => $validated['phone'] ?? null,
+            'role' => $validated['role'],
+            'password' => Hash::make($validated['password']),
+            'is_active' => true,
+        ]);
+
+        return redirect()->route('admin.index', ['tab' => 'team'])->with('success', 'Team member '.$validated['name'].' added as '.ucfirst($validated['role']).'.');
+    }
+}
