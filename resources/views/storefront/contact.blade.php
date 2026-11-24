@@ -12,7 +12,7 @@
     <section class="container operate-main">
         <div class="ledger-panel form-stack support-panel">
             <h2 class="ledger-panel__title">Email the team</h2>
-            <p><a href="mailto:hello@cafeisla.ph">hello@cafeisla.ph</a></p>
+            <p><a href="mailto:care.cafeisla@gmail.com">care.cafeisla@gmail.com</a></p>
             @if(config('cafeisla.demo_mode'))
                 <p>This address appears in the class project. Live customer support and café visiting hours are pending confirmation.</p>
             @endif
