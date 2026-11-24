@@ -159,7 +159,10 @@
                         <li><a href="{{ route('cart.index') }}">Persistent Shopping Bag</a></li>
                         <li><a href="{{ route('orders.track') }}">Track Order Status</a></li>
                         <li><a href="{{ route('account.index') }}">Customer Dashboard &amp; Returns</a></li>
+<<<<<<< HEAD
                         <li><a href="{{ route('admin.index') }}">Admin &amp; Courier Portal</a></li>
+=======
+>>>>>>> 3fd5ec3e2ff9dfbca64583b442277f949a382b08
                         <li><a href="{{ route('contact') }}">Contact</a></li>
                         <li><a href="{{ route('delivery.policy') }}">Delivery &amp; Returns</a></li>
                         <li><a href="{{ route('privacy') }}">Privacy</a></li>

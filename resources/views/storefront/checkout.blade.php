@@ -120,8 +120,13 @@
 
                         <div class="form-row-2">
                             <div class="field-group" id="gcashRefGroup" style="{{ old('payment_method', 'gcash') === 'cod' ? 'display:none;' : '' }}">
+<<<<<<< HEAD
                                 <label for="payment_account_ref" class="field-label">GCash Ref / Mobile Last 4</label>
                                 <input type="text" id="payment_account_ref" name="payment_account_ref" value="{{ old('payment_account_ref', 'GCASH-8841') }}" class="field-control">
+=======
+                                <label for="payment_account_ref" class="field-label">Demo Payment Reference (Optional)</label>
+                                <input type="text" id="payment_account_ref" name="payment_account_ref" value="{{ old('payment_account_ref') }}" placeholder="e.g. DEMO-8841" class="field-control">
+>>>>>>> 3fd5ec3e2ff9dfbca64583b442277f949a382b08
                             </div>
                             <div class="field-group">
                                 <label for="order_notes" class="field-label">Barista / Rider Note</label>

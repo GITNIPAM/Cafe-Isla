@@ -264,7 +264,7 @@ class CheckoutController extends Controller
                     'order_id' => $order->id,
                     'method' => $validated['payment_method'],
                     'reference_number' => $isPrepaid
-                        ? ($validated['payment_account_ref'] ?: 'GCASH-'.strtoupper(Str::random(6)))
+                        ? (($validated['payment_account_ref'] ?? '') ?: 'SIM-GCASH-'.strtoupper(Str::random(6)))
                         : 'COD-'.strtoupper(Str::random(6)),
                     'amount' => $grandTotal,
                     'status' => $isPrepaid ? 'paid' : 'pending',

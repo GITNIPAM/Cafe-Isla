@@ -38,7 +38,7 @@ The GitHub **Café Isla checks** workflow runs on PRs to `main` and pushes to `m
 
 - `CAFE_ISLA_DEMO_MODE=true` enables demo credentials, seed data, and the diagrams. Use a separate empty database for a public deployment and keep demo mode off there.
 - `CAFE_ISLA_LOCAL_DELIVERY_AREAS` is a semicolon-separated list of city and province pairs. The class demo covers `Dasmariñas, Cavite;San Juan, La Union`.
-- GCash and Maya/card checkout and refunds are simulated. `MAIL_MAILER=log` writes mail—including reset links—to the local Laravel log. Use sample addresses and account details during the defense.
+- Checkout offers simulated GCash payments and Cash on Delivery. Refunds are simulated. `MAIL_MAILER=log` writes mail, including reset links, to the local Laravel log. Use sample addresses and account details during the defense.
 - Newsletter signups record explicit consent. Confirm the contact mailbox, customer policies, live payments, and email delivery before accepting real orders or sending campaigns.
 - Catalog images are stored in `public/uploads/products` by default. If PHP cannot write there on Windows, set `CAFE_ISLA_UPLOAD_DIR` to an absolute writable directory. Existing catalog image URLs stay the same.
 
@@ -49,7 +49,6 @@ The GitHub **Café Isla checks** workflow runs on PRs to `main` and pushes to `m
 |---|---|---|
 | **Customer** | `customer@cafeisla.ph` | Persistent bag, `ISLA10` / `FREESIP` coupons, checkout, tracking, email inbox, cancel/return requests |
 | **Admin** | `admin@cafeisla.ph` | Full CRUD + product image uploads, analytics, order dispatch, return restock approvals, RBAC management |
-| **Staff** | `barista@cafeisla.ph` | Order confirmation/prep, product & batch stock updates, return processing |
 | **Courier** | `rider@cafeisla.ph` | Fulfillment-only dispatch view (`In Transit` -> `Delivered`) |
 
 ---

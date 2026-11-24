@@ -191,13 +191,6 @@
                                                 <br>Rider: {{ $order->delivery->courier->name }}
                                             @endif
                                         </div>
-                                        @if($order->delivery?->tracking_number)
-                                            <div style="margin-top:0.35rem;">
-                                                <a href="{{ route('orders.track', ['code' => $order->order_number]) }}" style="font-family:var(--font-mono);font-size:0.72rem;color:var(--canopy);text-decoration:underline;text-underline-offset:3px;">
-                                                    Track {{ $order->delivery->tracking_number }}
-                                                </a>
-                                            </div>
-                                        @endif
                                     </td>
                                     <td style="min-width:340px;">
                                         @php
