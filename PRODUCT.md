@@ -41,7 +41,7 @@ Unlike generic café e-commerce templates, Café Isla organizes craft drinks aro
 ## Brand Commitments
 
 - **Brand Name**: Café Isla — *"Slow sips from the archipelago."*
-- **Pinned La Union Series Drinks**: Muni Matcha, Dulce Matcha, Isla Matcha, Berry Matcha, Spanish Hojicha (with exact specified recipes and Hot/Iced availability).
+- **Pinned La Union Series Drinks**: Urbiztondo Morning Matcha, Monaliza Caramel Matcha, Carille Coco Matcha, Tangadan Berry Matcha, San Juan Spanish Hojicha (with exact specified recipes and Hot/Iced availability).
 - **Aesthetic Inspiration**: *Flora Wellness Cafe* editorial print-zine warmth translated into a sun-bleached Philippine island café world.
 - **No external runtime JS/CSS build pipeline**: plain CSS custom properties and vanilla ES6 JS under `public/assets/`.
 

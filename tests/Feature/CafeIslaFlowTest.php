@@ -28,21 +28,21 @@ class CafeIslaFlowTest extends TestCase
         $home = $this->get('/');
         $home->assertStatus(200)
             ->assertSee('Café Isla')
-            ->assertSee('Muni Matcha')
-            ->assertSee('Dulce Matcha')
-            ->assertSee('Isla Matcha')
-            ->assertSee('Berry Matcha')
-            ->assertSee('Spanish Hojicha');
+            ->assertSee('Urbiztondo Morning Matcha')
+            ->assertSee('Monaliza Caramel Matcha')
+            ->assertSee('Carille Coco Matcha')
+            ->assertSee('Tangadan Berry Matcha')
+            ->assertSee('San Juan Spanish Hojicha');
 
         $filtered = $this->get('/menu?island=la-union&serve_temp=iced');
         $filtered->assertStatus(200)
-            ->assertSee('Dulce Matcha')
+            ->assertSee('Monaliza Caramel Matcha')
             ->assertDontSee('Cloud 9 Sea Salt Latte');
 
         $search = $this->get('/menu?q=Hojicha');
         $search->assertStatus(200)
-            ->assertSee('Spanish Hojicha')
-            ->assertDontSee('Muni Matcha');
+            ->assertSee('San Juan Spanish Hojicha')
+            ->assertDontSee('Urbiztondo Morning Matcha');
 
         $this->get('/diagrams')->assertStatus(200)->assertSee('Normalized Relational Schema');
     }
@@ -169,7 +169,7 @@ class CafeIslaFlowTest extends TestCase
         $admin = User::where('email', 'admin@cafeisla.ph')->firstOrFail();
         $customer = User::where('email', 'customer@cafeisla.ph')->firstOrFail();
 
-        // 1. Seeded pending spill refund on Dulce Matcha (perishable) -> should NOT increment stock
+        // 1. Seeded pending spill refund on Monaliza Caramel Matcha (perishable) -> should NOT increment stock
         $drinkReturn = ReturnRequest::where('request_type', 'spill_refund')->where('status', 'pending')->firstOrFail();
         $drinkVariant = $drinkReturn->orderItem->variant;
         $drinkStockBefore = $drinkVariant->stock_qty;

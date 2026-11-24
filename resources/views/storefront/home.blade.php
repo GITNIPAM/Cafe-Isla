@@ -114,7 +114,7 @@
             <div class="menu-split-grid">
                 <aside class="menu-split-aside">
                     <div class="menu-split-photo">
-                        <img src="{{ asset('assets/images/editorial/menu-table-ritual.jpg') }}" alt="Dulce Matcha, Halaya Dirty Ube Latte, and Big Lagoon Butterfly Pea Limonada on sunlit travertine table">
+                        <img src="{{ asset('assets/images/editorial/menu-table-ritual.jpg') }}" alt="Monaliza Caramel Matcha, Halaya Dirty Ube Latte, and Big Lagoon Butterfly Pea Limonada on sunlit travertine table">
                     </div>
                     <p class="menu-split-caption">
                         Whisked ceremonial Uji matcha, Batangas barako, purple halaya, and fresh Palawan botanicals—crafted per cup for local rider express.

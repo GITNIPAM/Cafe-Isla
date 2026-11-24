@@ -7,7 +7,7 @@ Full-stack specialty Philippine island café and coastal lifestyle e-commerce pl
 ---
 
 ## Featured Island Chapters & Catalog (25 Products)
-- **La Union Series (`16.6631° N, 120.3208° E`)**: Muni Matcha, Dulce Matcha, Isla Matcha, Berry Matcha, Spanish Hojicha.
+- **La Union Series (`16.6631° N, 120.3208° E`)**: Urbiztondo Morning Matcha, Monaliza Caramel Matcha, Carille Coco Matcha, Tangadan Berry Matcha, San Juan Spanish Hojicha.
 - **Siargao Series (`9.8482° N, 126.0458° E`)**: Cloud 9 Sea Salt Latte, Kalamansi Espresso Tonic, Catangnan Coco Cold Brew, Tablea Cacao Mocha.
 - **Boracay Series (`11.9674° N, 121.9248° E`)**: Halaya Dirty Ube Latte, Pandan Buko Cloud, Golden Hour Mango Fizz, Barako Tres Leches Latte.
 - **El Nido Series (`11.1956° N, 119.4180° E`)**: Big Lagoon Butterfly Pea Limonada, Nacpan Hibiscus Ginger Cooler, Palawan Golden Turmeric Latte, Miniloc Lychee Rose White Tea.
