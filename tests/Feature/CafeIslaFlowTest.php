@@ -51,10 +51,6 @@ class CafeIslaFlowTest extends TestCase
             ->assertDontSee('Urbiztondo Morning Matcha');
 
         $this->get('/diagrams')->assertStatus(200)->assertSee('Normalized Relational Schema');
-<<<<<<< HEAD
-        $this->get('/track?order=CI-2026-1003')->assertStatus(200)->assertSee('TRK-1003-ISLA');
-        $this->get('/track?order=TRK-1003-ISLA')->assertStatus(200)->assertSee('CI-2026-1003');
-=======
 
         $this->get('/product/muni-matcha')->assertStatus(301)
             ->assertRedirect('/product/urbiztondo-morning-matcha');
@@ -63,7 +59,6 @@ class CafeIslaFlowTest extends TestCase
         }
         $legacy = new Product(['image_path' => 'assets/images/drinks/muni-matcha.jpg']);
         $this->assertStringEndsWith('/urbiztondo-morning-matcha.jpg', $legacy->imageUrl());
->>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
     }
 
     public function test_bcrypt_registration_and_rbac_portal_permissions(): void
@@ -256,6 +251,8 @@ class CafeIslaFlowTest extends TestCase
             ->assertJsonMissing(['id' => $otherReceipt->id]);
         $this->get('/track?order='.$ownReceipt->order->order_number)->assertOk()->assertSee('Items Ordered');
         $this->get('/track?order='.$otherReceipt->order->order_number)->assertOk()->assertDontSee('Items Ordered');
+        $this->get('/track?order='.urlencode('#'.$ownReceipt->order->delivery->tracking_number))->assertOk()->assertSee('Items Ordered');
+        $this->get('/track?order='.$otherReceipt->order->delivery->tracking_number)->assertOk()->assertDontSee('Items Ordered');
 
         $courier = User::where('email', 'rider@cafeisla.ph')->firstOrFail();
         $otherCourier = User::factory()->create(['role' => 'courier', 'is_active' => true]);

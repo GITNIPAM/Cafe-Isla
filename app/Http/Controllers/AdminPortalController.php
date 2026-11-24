@@ -341,21 +341,15 @@ class AdminPortalController extends Controller
         $isCourier = $user->role === 'courier';
         $validated = $request->validate([
             'status' => ['required', 'in:pending,confirmed,preparing,shipped,delivered,cancelled'],
-<<<<<<< HEAD
-            'delivery_status' => ['nullable', 'in:unassigned,assigned,in_transit,delivered'],
-            'courier_user_id' => ['nullable', 'integer', 'exists:users,id'],
-=======
+            'delivery_status' => ['nullable', Rule::in($request->input('status') === 'shipped'
+                ? ($isCourier ? ['in_transit'] : ['assigned', 'in_transit']) : ['delivered'])],
             'courier_user_id' => [$isCourier ? 'prohibited' : 'nullable', 'integer', Rule::exists('users', 'id')->where('role', 'courier')->where('is_active', true)],
->>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
             'proof_notes' => ['nullable', 'string', 'max:255'],
         ]);
 
         $newStatus = $validated['status'];
         $shouldNotify = false;
 
-<<<<<<< HEAD
-        DB::transaction(function () use ($order, $delivery, $validated, $newStatus, $user, &$shouldNotify) {
-=======
         DB::transaction(function () use ($order, $user, $isCourier, $validated, $newStatus, &$shouldNotify) {
             $order = Order::lockForUpdate()->findOrFail($order->id);
             $delivery = $order->delivery()->lockForUpdate()->first();
@@ -369,7 +363,6 @@ class AdminPortalController extends Controller
                 );
             }
 
->>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
             $oldStatus = $order->status;
             $order->update(['status' => $newStatus]);
 
@@ -381,9 +374,7 @@ class AdminPortalController extends Controller
                         $deliveryUpdate['status'] = 'assigned';
                     }
                 } elseif ($newStatus === 'shipped' && empty($delivery->courier_user_id)) {
-                    $fallbackCourier = $user->role === 'courier'
-                        ? $user->id
-                        : User::where('role', 'courier')->where('is_active', true)->value('id');
+                    $fallbackCourier = User::where('role', 'courier')->where('is_active', true)->value('id');
                     if ($fallbackCourier) {
                         $deliveryUpdate['courier_user_id'] = $fallbackCourier;
                     }
@@ -395,7 +386,9 @@ class AdminPortalController extends Controller
 
                 if ($newStatus === 'shipped') {
                     $deliveryUpdate['status'] = $validated['delivery_status'] ?? 'in_transit';
-                    $deliveryUpdate['shipped_at'] = $delivery->shipped_at ?? now();
+                    if ($deliveryUpdate['status'] === 'in_transit') {
+                        $deliveryUpdate['shipped_at'] = $delivery->shipped_at ?? now();
+                    }
                     $shouldNotify = true;
                 } elseif ($newStatus === 'delivered') {
                     $deliveryUpdate['status'] = 'delivered';

@@ -45,13 +45,8 @@
                             ['name' => 'carts', 'tag' => 'Session', 'cols' => [['id', 'PK'], ['user_id', 'FK?'], ['session_token', 'UK'], ['coupon_id', 'FK?'], ['status', 'enum']]],
                             ['name' => 'cart_items', 'tag' => '1:N carts', 'cols' => [['id', 'PK'], ['cart_id', 'FK'], ['product_variant_id', 'FK'], ['quantity', 'int'], ['unit_price', 'decimal'], ['custom_notes', 'varchar']]],
                             ['name' => 'orders', 'tag' => 'Core TX', 'cols' => [['id', 'PK'], ['order_number', 'UK'], ['user_id', 'FK'], ['coupon_id', 'FK?'], ['delivery_zone', 'enum'], ['grand_total', 'decimal'], ['status', 'enum']]],
-<<<<<<< HEAD
-                            ['name' => 'order_items', 'tag' => 'Snapshot', 'cols' => [['id', 'PK'], ['order_id', 'FK'], ['product_id', 'FK'], ['product_variant_id', 'FK'], ['is_perishable', 'bool'], ['line_total', 'decimal']]],
-                            ['name' => 'payments', 'tag' => '1:1 orders', 'cols' => [['id', 'PK'], ['order_id', 'UK, FK'], ['method', 'gcash|cod'], ['reference_number', 'varchar'], ['status', 'enum']]],
-=======
                             ['name' => 'order_items', 'tag' => 'Snapshot', 'cols' => [['id', 'PK'], ['order_id', 'FK'], ['product_id', 'FK'], ['product_variant_id', 'FK'], ['is_perishable', 'bool'], ['line_total', 'decimal'], ['custom_notes', 'string']]],
-                            ['name' => 'payments', 'tag' => '1:1 orders', 'cols' => [['id', 'PK'], ['order_id', 'UK, FK'], ['method', 'gcash|maya|cod'], ['reference_number', 'varchar'], ['status', 'enum']]],
->>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
+                            ['name' => 'payments', 'tag' => '1:1 orders', 'cols' => [['id', 'PK'], ['order_id', 'UK, FK'], ['method', 'gcash|cod'], ['reference_number', 'varchar'], ['status', 'enum']]],
                             ['name' => 'deliveries', 'tag' => '1:1 orders', 'cols' => [['id', 'PK'], ['order_id', 'UK, FK'], ['courier_user_id', 'FK?'], ['tracking_number', 'UK'], ['status', 'enum']]],
                             ['name' => 'return_requests', 'tag' => 'Hybrid', 'cols' => [['id', 'PK'], ['order_id', 'FK'], ['order_item_id', 'FK?'], ['user_id', 'FK'], ['processed_by', 'FK?'], ['restock_applied', 'bool'], ['status', 'enum']]],
                             ['name' => 'email_logs', 'tag' => 'Dual-Mail', 'cols' => [['id', 'PK'], ['user_id', 'FK?'], ['order_id', 'FK?'], ['event_type', 'enum'], ['recipient_email', 'varchar'], ['smtp_status', 'varchar']]],

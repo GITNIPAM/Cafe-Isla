@@ -159,17 +159,12 @@
                         <li><a href="{{ route('cart.index') }}">Persistent Shopping Bag</a></li>
                         <li><a href="{{ route('orders.track') }}">Track Order Status</a></li>
                         <li><a href="{{ route('account.index') }}">Customer Dashboard &amp; Returns</a></li>
-<<<<<<< HEAD
-                        <li><a href="{{ route('admin.index') }}">Admin &amp; Courier Portal</a></li>
-                        <li><a href="{{ route('diagrams.index') }}">ERD, Use Cases &amp; Brand Guide</a></li>
-=======
                         <li><a href="{{ route('contact') }}">Contact</a></li>
                         <li><a href="{{ route('delivery.policy') }}">Delivery &amp; Returns</a></li>
                         <li><a href="{{ route('privacy') }}">Privacy</a></li>
                         @if(config('cafeisla.demo_mode'))
                             <li><a href="{{ route('diagrams.index') }}">ERD, Use Cases &amp; Brand Guide</a></li>
                         @endif
->>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
                     </ul>
                 </div>
 

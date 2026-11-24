@@ -263,13 +263,9 @@ class CheckoutController extends Controller
                 Payment::create([
                     'order_id' => $order->id,
                     'method' => $validated['payment_method'],
-<<<<<<< HEAD
                     'reference_number' => $isPrepaid
-                        ? ($validated['payment_account_ref'] ?: 'GCASH-'.strtoupper(Str::random(6)))
+                        ? (($validated['payment_account_ref'] ?? '') ?: 'SIM-GCASH-'.strtoupper(Str::random(6)))
                         : 'COD-'.strtoupper(Str::random(6)),
-=======
-                    'reference_number' => ($validated['payment_account_ref'] ?? '') ?: 'SIM-'.strtoupper(Str::random(8)),
->>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
                     'amount' => $grandTotal,
                     'status' => $isPrepaid ? 'paid' : 'pending',
                     'paid_at' => $isPrepaid ? now() : null,

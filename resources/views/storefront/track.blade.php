@@ -7,11 +7,7 @@
         <div class="container">
             <h1 class="page-intro__title">Track Your Archipelago Order</h1>
             <p class="page-intro__lead">
-<<<<<<< HEAD
-                Enter any Café Isla order number (<strong>CI-2026-1003</strong>) or tracking number (<strong>TRK-1003-ISLA</strong>) to check live prep and rider updates.
-=======
-                Enter the order number from your receipt or <a href="{{ route('account.index') }}">account</a> to check prep and delivery updates.
->>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
+                Enter the order or tracking number from your receipt or <a href="{{ route('account.index') }}">account</a> to check prep and delivery updates.
             </p>
         </div>
     </section>
@@ -19,11 +15,7 @@
     <section class="container operate-main">
         <div class="ledger-panel" style="max-width:760px;">
             <form method="GET" action="{{ route('orders.track') }}" style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-<<<<<<< HEAD
-                <input type="text" name="order" value="{{ $orderNumber }}" placeholder="Order # or Tracking # (e.g. CI-2026-1003 or TRK-1003-ISLA)" class="field-control" style="flex:1;" required>
-=======
-                <input type="text" name="order" value="{{ $orderNumber }}" aria-label="Order number" placeholder="Enter order number" class="field-control" style="flex:1;" required>
->>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
+                <input type="text" name="order" value="{{ $orderNumber }}" aria-label="Order or tracking number" placeholder="Enter order or tracking number" class="field-control" style="flex:1;" required>
                 <button type="submit" class="tag-btn tag-btn--canopy">Track Order</button>
             </form>
 

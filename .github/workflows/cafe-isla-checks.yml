@@ -38,5 +38,11 @@ jobs:
         run: |
           node --check public/assets/js/isla.js
           node --check public/assets/js/checkout.js
+      - name: Reject unresolved merge conflicts
+        run: |
+          set +e
+          git grep -n -E '^(<{7} |={7}$|>{7} |\|{7} )' -- app bootstrap config database public resources routes tests
+          result=$?
+          test "$result" -eq 1
       - name: Run feature and unit tests
         run: php artisan test
