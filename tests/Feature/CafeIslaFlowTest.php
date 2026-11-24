@@ -8,9 +8,14 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\ReturnRequest;
 use App\Models\User;
+use App\Models\UserAddress;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class CafeIslaFlowTest extends TestCase
@@ -45,6 +50,14 @@ class CafeIslaFlowTest extends TestCase
             ->assertDontSee('Urbiztondo Morning Matcha');
 
         $this->get('/diagrams')->assertStatus(200)->assertSee('Normalized Relational Schema');
+
+        $this->get('/product/muni-matcha')->assertStatus(301)
+            ->assertRedirect('/product/urbiztondo-morning-matcha');
+        foreach (Product::all() as $product) {
+            $this->assertFileExists(public_path(parse_url($product->imageUrl(), PHP_URL_PATH)));
+        }
+        $legacy = new Product(['image_path' => 'assets/images/drinks/muni-matcha.jpg']);
+        $this->assertStringEndsWith('/urbiztondo-morning-matcha.jpg', $legacy->imageUrl());
     }
 
     public function test_bcrypt_registration_and_rbac_portal_permissions(): void
@@ -87,7 +100,7 @@ class CafeIslaFlowTest extends TestCase
         $initialStock = $variant->stock_qty;
 
         // Add as guest first
-        $this->postJson('/cart/items', ['variant_id' => $variant->id, 'quantity' => 2])
+        $this->postJson('/cart/items', ['variant_id' => $variant->id, 'quantity' => 2, 'custom_notes' => 'Half sweet, light ice'])
             ->assertStatus(200)
             ->assertJsonPath('ok', true)
             ->assertJsonPath('summary.count', 2);
@@ -124,6 +137,9 @@ class CafeIslaFlowTest extends TestCase
         $this->assertEquals($initialStock - 2, $variant->stock_qty);
 
         $order = Order::where('user_id', $customer->id)->latest('id')->firstOrFail();
+        $this->assertSame('Half sweet, light ice', $order->items()->firstOrFail()->custom_notes);
+        $this->postJson('/cart/items', ['variant_id' => $variant->id, 'quantity' => 1])
+            ->assertOk()->assertJsonPath('summary.count', 1);
         $this->assertDatabaseHas('email_logs', [
             'order_id' => $order->id,
             'event_type' => 'order_confirmation',
@@ -132,6 +148,7 @@ class CafeIslaFlowTest extends TestCase
         // Admin ships order -> logs shipping_update email
         $admin = User::where('email', 'admin@cafeisla.ph')->firstOrFail();
         $courier = User::where('email', 'rider@cafeisla.ph')->firstOrFail();
+        $this->actingAs($admin)->get('/admin?tab=orders')->assertSee('Half sweet, light ice');
         $this->actingAs($admin)->patch('/admin/orders/'.$order->id, [
             'status' => 'shipped',
             'courier_user_id' => $courier->id,
@@ -205,10 +222,133 @@ class CafeIslaFlowTest extends TestCase
         $this->assertEquals($merchStockBefore + $merchItem->quantity, $merchItem->variant->fresh()->stock_qty);
     }
 
+    public function test_receipts_and_tracking_are_private_and_couriers_only_see_assigned_orders(): void
+    {
+        $customer = User::where('email', 'customer@cafeisla.ph')->firstOrFail();
+        $ownReceipt = EmailLog::where('user_id', $customer->id)->firstOrFail();
+        $otherReceipt = EmailLog::where('user_id', '!=', $customer->id)->firstOrFail();
+        $this->getJson('/inbox')->assertUnauthorized();
+        $this->get('/track?order='.$ownReceipt->order->order_number)->assertRedirect('/auth');
+        $this->actingAs($customer)->getJson('/inbox')->assertOk()
+            ->assertJsonFragment(['id' => $ownReceipt->id])
+            ->assertJsonMissing(['id' => $otherReceipt->id]);
+        $this->get('/track?order='.$ownReceipt->order->order_number)->assertOk()->assertSee('Items Ordered');
+        $this->get('/track?order='.$otherReceipt->order->order_number)->assertOk()->assertDontSee('Items Ordered');
+
+        $courier = User::where('email', 'rider@cafeisla.ph')->firstOrFail();
+        $otherCourier = User::factory()->create(['role' => 'courier', 'is_active' => true]);
+        $order = Order::whereHas('delivery', fn ($query) => $query->where('courier_user_id', $courier->id))->firstOrFail();
+        $this->actingAs($courier)->get('/admin')->assertSee($order->order_number);
+        $this->actingAs($otherCourier)->get('/admin')->assertDontSee($order->order_number);
+        $this->patch('/admin/orders/'.$order->id, ['status' => 'delivered'])->assertForbidden();
+        $this->getJson('/inbox')->assertOk()->assertJsonCount(0, 'emails');
+    }
+
+    public function test_checkout_quotes_follow_the_address_and_current_prices(): void
+    {
+        $customer = User::where('email', 'customer@cafeisla.ph')->firstOrFail();
+        $merch = ProductVariant::whereHas('product', fn ($query) => $query->where('is_perishable', false))->firstOrFail();
+        $local = $customer->addresses()->where('is_default', true)->firstOrFail();
+        $parcel = $customer->addresses()->where('delivery_zone', 'provincial_parcel')->firstOrFail();
+
+        $merch->update(['price' => 600]);
+        $this->actingAs($customer)->postJson('/cart/items', ['variant_id' => $merch->id, 'quantity' => 1])->assertOk();
+        $this->get('/checkout')->assertOk()->assertSee('₱665.00');
+        $this->postJson('/checkout/quote', ['saved_address_id' => $parcel->id, 'delivery_zone' => 'provincial_parcel'])
+            ->assertOk()->assertJsonPath('delivery_error', null)->assertJsonPath('grand_total', 720);
+        $this->postJson('/checkout/quote', ['saved_address_id' => $parcel->id, 'delivery_zone' => 'local_express'])
+            ->assertOk()->assertJsonPath('delivery_error', fn ($value) => str_contains($value, 'unavailable'));
+        $this->postJson('/cart/coupon', ['code' => 'FREESIP'])->assertOk();
+        $this->postJson('/checkout/quote', ['saved_address_id' => $local->id, 'delivery_zone' => 'local_express'])
+            ->assertJsonPath('grand_total', 600)->assertJsonPath('delivery_fee', 0);
+        $this->postJson('/checkout/quote', ['saved_address_id' => $parcel->id, 'delivery_zone' => 'provincial_parcel'])
+            ->assertJsonPath('grand_total', 720)->assertJsonPath('discount_amount', 0);
+
+        $foreignAddress = UserAddress::where('user_id', '!=', $customer->id)->firstOrFail();
+        $this->postJson('/checkout/quote', ['saved_address_id' => $foreignAddress->id, 'delivery_zone' => 'local_express'])
+            ->assertNotFound();
+
+        $fields = [
+            'billing_name' => $customer->name,
+            'billing_email' => $customer->email,
+            'billing_phone' => $local->phone,
+            'payment_method' => 'cod',
+            'saved_address_id' => $local->id,
+            'delivery_zone' => 'provincial_parcel',
+            'quoted_total' => 720,
+        ];
+        $merch->update(['price' => 490]);
+        $this->postJson('/checkout/quote', ['shipping_city' => 'Dasmarinas', 'shipping_province' => 'Cavite', 'delivery_zone' => 'local_express'])
+            ->assertJsonPath('delivery_error', null)->assertJsonPath('grand_total', 555);
+        $this->from('/checkout')->post('/checkout', $fields)->assertRedirect('/checkout')->assertSessionHas('error');
+        $this->post('/checkout', array_replace($fields, ['quoted_total' => 610]))->assertRedirect('/account');
+        $order = $customer->orders()->latest('id')->firstOrFail();
+        $this->assertSame('610.00', $order->grand_total);
+        $this->assertSame('provincial_parcel', $order->delivery_zone);
+    }
+
+    public function test_drink_order_cannot_skip_delivery_eligibility_or_save_an_invalid_address(): void
+    {
+        $customer = User::where('email', 'customer@cafeisla.ph')->firstOrFail();
+        $variant = ProductVariant::where('variant_code', 'CI-LU-001-ICE')->firstOrFail();
+        $this->actingAs($customer)->postJson('/cart/items', ['variant_id' => $variant->id, 'quantity' => 1])->assertOk();
+        $address = ['shipping_city' => 'Cebu City', 'shipping_province' => 'Cebu', 'delivery_zone' => 'provincial_parcel'];
+        $this->postJson('/checkout/quote', $address)->assertJsonPath('delivery_error', fn ($value) => str_contains($value, 'Fresh drinks'));
+        $this->from('/checkout')->post('/checkout', array_replace($address, [
+            'billing_name' => $customer->name, 'billing_email' => $customer->email, 'billing_phone' => '09175550188',
+            'shipping_recipient' => 'Sample Recipient', 'shipping_phone' => '09175550188',
+            'shipping_address_line' => 'Sample lane', 'shipping_postal_code' => '6000',
+            'delivery_zone' => 'local_express', 'payment_method' => 'cod', 'save_address' => '1',
+        ]))->assertRedirect('/checkout')->assertSessionHas('error');
+        $this->assertDatabaseMissing('user_addresses', ['street_address' => 'Sample lane']);
+        $this->assertDatabaseMissing('orders', ['shipping_address_line' => 'Sample lane']);
+        $this->assertSame($variant->stock_qty, $variant->fresh()->stock_qty);
+    }
+
+    public function test_support_pages_and_newsletter_require_consent(): void
+    {
+        $this->get('/contact')->assertOk()->assertSee('Contact Café Isla');
+        $this->get('/delivery-and-returns')->assertOk()->assertSee('Dasmariñas, Cavite');
+        $this->get('/privacy')->assertOk()->assertSee('Seasonal email list');
+        $this->from('/')->post('/newsletter', ['newsletter_email' => 'News@example.com'])
+            ->assertRedirect('/')->assertSessionHasErrors('newsletter_consent');
+        $this->assertDatabaseCount('newsletter_subscriptions', 0);
+        foreach (['News@example.com', 'news@example.com'] as $email) {
+            $this->from('/')->post('/newsletter', ['newsletter_email' => $email, 'newsletter_consent' => '1'])
+                ->assertRedirect('/')->assertSessionHas('success');
+        }
+        $this->assertDatabaseCount('newsletter_subscriptions', 1);
+        $this->assertDatabaseHas('newsletter_subscriptions', ['email' => 'news@example.com']);
+    }
+
+    public function test_demo_sign_in_and_diagrams_are_hidden_when_demo_mode_is_off(): void
+    {
+        config(['cafeisla.demo_mode' => false]);
+        $this->get('/')->assertOk()->assertDontSee(route('diagrams.index'));
+        $this->get('/auth')->assertOk()->assertDontSee('data-demo-email', false);
+        $this->get('/diagrams')->assertNotFound();
+    }
+
+    public function test_password_reset_uses_a_one_time_email_link(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create(['is_active' => true]);
+        $this->get('/forgot-password')->assertOk();
+        $this->from('/forgot-password')->post('/forgot-password', ['email' => $user->email])->assertSessionHas('info');
+        $token = Notification::sent($user, ResetPassword::class)->sole()->token;
+        $this->get(route('password.reset', ['token' => $token, 'email' => $user->email]))->assertOk();
+        $fields = ['email' => $user->email, 'token' => $token, 'password' => 'ChangedPassword28!', 'password_confirmation' => 'ChangedPassword28!'];
+        $this->post('/reset-password', $fields)->assertRedirect('/auth');
+        $this->assertTrue(Hash::check('ChangedPassword28!', $user->fresh()->password));
+        $this->post('/reset-password', $fields)->assertSessionHasErrors('email');
+    }
+
     public function test_admin_can_upload_product_image_and_create_item(): void
     {
         $admin = User::where('email', 'admin@cafeisla.ph')->firstOrFail();
-        $tmpCopy = sys_get_temp_dir().DIRECTORY_SEPARATOR.'cafe_isla_upload_test.jpg';
+        $imageRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'cafe-isla-'.Str::uuid();
+        config(['filesystems.disks.catalog_uploads.root' => $imageRoot]);
+        $tmpCopy = tempnam(sys_get_temp_dir(), 'cafe-isla-upload-');
         copy(public_path('assets/images/drinks/urbiztondo-morning-matcha.jpg'), $tmpCopy);
         $file = new UploadedFile($tmpCopy, 'island-test-drink.jpg', 'image/jpeg', null, true);
 
@@ -231,8 +371,15 @@ class CafeIslaFlowTest extends TestCase
 
         $created = Product::where('sku', 'CI-TEST-900')->firstOrFail();
         $this->assertStringStartsWith('uploads/products/', (string) $created->image_path);
-        $this->assertFileExists(public_path($created->image_path));
-
-        @unlink(public_path($created->image_path));
+        $disk = Storage::disk('catalog_uploads');
+        $filename = basename($created->image_path);
+        try {
+            $this->assertFileExists($disk->path($filename));
+            $this->get('/'.$created->image_path)->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
+        } finally {
+            $disk->delete($filename);
+            rmdir($imageRoot);
+            unlink($tmpCopy);
+        }
     }
 }

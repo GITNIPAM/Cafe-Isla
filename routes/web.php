@@ -6,15 +6,24 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\EmailInboxController;
+use App\Http\Controllers\NewsletterController;
+use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\StorefrontController;
+use App\Http\Middleware\ShopVisitMiddleware;
 use Illuminate\Support\Facades\Route;
 
 // Public Storefront & Presentation
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
 Route::get('/menu', [StorefrontController::class, 'menu'])->name('menu.index');
 Route::get('/product/{slug}', [StorefrontController::class, 'show'])->name('product.show');
-Route::get('/track', [StorefrontController::class, 'track'])->name('orders.track');
+Route::get('/uploads/products/{filename}', [StorefrontController::class, 'productImage'])
+    ->where('filename', '[A-Za-z0-9][A-Za-z0-9_-]*\.(?:jpe?g|png|webp)')
+    ->withoutMiddleware(ShopVisitMiddleware::class);
 Route::get('/diagrams', [StorefrontController::class, 'diagrams'])->name('diagrams.index');
+Route::view('/contact', 'storefront.contact')->name('contact');
+Route::view('/delivery-and-returns', 'storefront.delivery-and-returns')->name('delivery.policy');
+Route::view('/privacy', 'storefront.privacy')->name('privacy');
+Route::post('/newsletter', [NewsletterController::class, 'store'])->middleware('throttle:6,1')->name('newsletter.store');
 
 // Persistent Shopping Bag
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
@@ -24,18 +33,24 @@ Route::delete('/cart/items/{cartItem}', [CartController::class, 'removeItem'])->
 Route::post('/cart/coupon', [CartController::class, 'applyCoupon'])->name('cart.coupon.apply');
 Route::delete('/cart/coupon', [CartController::class, 'removeCoupon'])->name('cart.coupon.remove');
 
-// Live Dual-Channel Email Inbox Feed
-Route::get('/inbox', [EmailInboxController::class, 'index'])->name('inbox.index');
-
 // Authentication
 Route::get('/auth', [AuthController::class, 'index'])->name('auth.index');
 Route::post('/auth/register', [AuthController::class, 'register'])->name('auth.register');
 Route::post('/auth/login', [AuthController::class, 'login'])->name('auth.login');
 Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
+Route::middleware('guest')->group(function () {
+    Route::get('/forgot-password', [PasswordResetController::class, 'request'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetController::class, 'send'])->middleware('throttle:6,1')->name('password.email');
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'edit'])->name('password.reset');
+    Route::post('/reset-password', [PasswordResetController::class, 'update'])->middleware('throttle:6,1')->name('password.update');
+});
 
 // Authenticated Customer Flows
 Route::middleware('auth')->group(function () {
+    Route::get('/track', [StorefrontController::class, 'track'])->name('orders.track');
+    Route::get('/inbox', [EmailInboxController::class, 'index'])->name('inbox.index');
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
+    Route::post('/checkout/quote', [CheckoutController::class, 'quote'])->name('checkout.quote');
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 
     Route::get('/account', [AccountController::class, 'index'])->name('account.index');
