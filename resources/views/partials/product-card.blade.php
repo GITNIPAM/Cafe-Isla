@@ -1,6 +1,6 @@
 @php
     $activeVariants = $product->variants->where('is_active', true);
-    $firstAvailable = $activeVariants->first(fn ($v) => $v->stock_qty > 0) ?? $activeVariants->first();
+    $firstAvailable = $product->displayVariant();
     $totalStock = $activeVariants->sum('stock_qty');
     $lowBatch = $activeVariants->contains(fn ($v) => $v->stock_qty > 0 && $v->stock_qty <= $v->low_stock_threshold);
 @endphp
@@ -24,7 +24,7 @@
         <p class="product-card__excerpt">{{ $product->short_excerpt }}</p>
 
         <div class="product-card__footer">
-            <span class="product-card__price tabular">₱{{ number_format((float) ($firstAvailable->price ?? $product->base_price), 0) }}</span>
+            <span class="product-card__price tabular">₱{{ number_format((float) ($firstAvailable->price ?? $product->base_price), 2) }}</span>
             @if($firstAvailable && $firstAvailable->stock_qty > 0)
                 <button
                     type="button"

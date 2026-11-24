@@ -45,7 +45,7 @@ class AuthController extends Controller
         $request->session()->regenerate();
         $this->cartService->mergeGuestCartIntoUser($request, $user);
 
-        return redirect()->route('account.index')->with('success', 'Welcome to Café Isla, '.$user->name.'.');
+        return redirect()->intended(route('account.index'))->with('success', 'Welcome to Café Isla, '.$user->name.'.');
     }
 
     public function login(Request $request): RedirectResponse

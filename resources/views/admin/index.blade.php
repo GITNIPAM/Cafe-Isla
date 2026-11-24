@@ -228,6 +228,8 @@
                         @foreach($orders as $order)
                             @php
                                 $delStatus = $order->delivery?->status ?? 'unassigned';
+                                $deliveryLabel = $delStatus === 'failed' && in_array($order->status, ['cancelled', 'returned'], true)
+                                    ? 'Stopped' : ucfirst(str_replace('_', ' ', $delStatus));
                                 $stageIndex = match ($order->status) {
                                     'pending' => 0,
                                     'confirmed' => 1,
@@ -272,17 +274,23 @@
                                             {{ $order->shipping_phone }}<br>
                                             {{ $order->shipping_address_line }}, {{ $order->shipping_city }}, {{ $order->shipping_province }}
                                         </div>
+                                        @if($order->order_notes)
+                                            <p class="admin-order-card__sub"><strong>Barista / Rider Note</strong><br>{{ $order->order_notes }}</p>
+                                        @endif
                                         <div style="margin-top:0.6rem;font-family:var(--font-mono);font-size:0.82rem;color:var(--espresso-ink);">
                                             @if($role === 'courier')
-                                                @if($order->payment?->method === 'cod' && $order->payment?->status !== 'paid')
-                                                    <strong style="color:var(--clay-coral);">Collect Cash (COD): ₱{{ number_format((float) $order->grand_total, 2) }}</strong>
+                                                @if($order->payment?->amountToCollect() > 0)
+                                                    <strong style="color:var(--clay-coral);">Collect Cash (COD): ₱{{ number_format($order->payment->amountToCollect(), 2) }}</strong>
                                                 @else
-                                                    <strong style="color:var(--canopy-deep);">Prepaid ({{ $order->payment?->methodLabel() }}) &middot; ₱0.00 to collect</strong>
+                                                    <strong style="color:var(--canopy-deep);">₱0.00 to collect</strong>
                                                 @endif
-                                                &middot; Delivery: {{ strtoupper($delStatus) }}
+                                                &middot; Delivery: {{ $deliveryLabel }}
                                             @else
-                                                Payment: {{ $order->payment?->methodLabel() }} ({{ strtoupper($order->payment?->status ?? 'pending') }})
-                                                &middot; Delivery: {{ strtoupper($delStatus) }}
+                                                Payment: {{ $order->payment?->methodLabel() }} ({{ $order->payment?->statusLabel() ?? 'Pending' }})
+                                                @if($order->payment?->amountToCollect() > 0)
+                                                    &middot; COD due: ₱{{ number_format($order->payment->amountToCollect(), 2) }}
+                                                @endif
+                                                &middot; Delivery: {{ $deliveryLabel }}
                                                 @if($order->delivery?->courier)
                                                     &middot; Rider: {{ $order->delivery->courier->name }}
                                                 @endif
@@ -315,6 +323,8 @@
                                         <div style="font-size:0.9rem;color:var(--clay-coral);font-weight:600;">
                                             Order Cancelled &mdash; No further fulfillment steps.
                                         </div>
+                                    @elseif($order->status === 'returned')
+                                        <div class="admin-order-card__meta">Order returned.</div>
                                     @else
                                         <div class="admin-pipeline" aria-label="Fulfillment Pipeline">
                                             @foreach($pipelineSteps as $stepNum => $stepLabel)
@@ -364,12 +374,15 @@
                                                 @method('PATCH')
                                                 <input type="hidden" name="status" value="shipped">
                                                 <input type="hidden" name="delivery_status" value="assigned">
-                                                <select name="courier_user_id" class="field-control">
+                                                <select name="courier_user_id" class="field-control" aria-label="Courier for order {{ $order->order_number }}" required>
                                                     @foreach($couriers as $c)
                                                         <option value="{{ $c->id }}" @selected($order->delivery?->courier_user_id === $c->id)>{{ $c->name }}</option>
                                                     @endforeach
                                                 </select>
-                                                <button type="submit" class="tag-btn tag-btn--canopy">3. Assign Courier &amp; Ship &rarr;</button>
+                                                <button type="submit" class="tag-btn tag-btn--canopy" @disabled($couriers->isEmpty())>3. Assign Courier &amp; Ship &rarr;</button>
+                                                @if($couriers->isEmpty())
+                                                    <span class="admin-order-card__meta">An active courier is required.</span>
+                                                @endif
                                             </form>
                                         @elseif($order->status === 'shipped' && $delStatus !== 'in_transit')
                                             <form method="POST" action="{{ route('admin.orders.update', $order) }}" class="admin-action-bar">
@@ -640,7 +653,7 @@
             <div class="ledger-panel">
                 <h2 class="ledger-panel__title">Return, Cancellation &amp; Refund Processing</h2>
                 <p style="font-size:0.92rem;color:var(--taupe-muted);margin:0 0 1.25rem 0;">
-                    Approving a non-perishable <strong>Isla Merch</strong> return automatically increments variant stock. Approving a perishable <strong>beverage spill refund</strong> issues payment refund without restocking.
+                    Approved returns restore eligible merch to stock. Collected payments receive a simulated refund. Unpaid Cash on Delivery orders receive a reduction in the amount due.
                 </p>
 
                 <div class="admin-card-list">
@@ -656,7 +669,13 @@
                                 </div>
                                 <div class="admin-order-card__status-group">
                                     <span class="status-tag status-tag--{{ $ret->status }}">{{ strtoupper($ret->status) }}</span>
-                                    <span class="admin-order-card__total tabular">₱{{ number_format((float) $ret->refund_amount, 2) }}</span>
+                                    @if($ret->status === 'pending')
+                                        <span class="admin-order-card__total tabular">Requested credit: ₱{{ number_format(min((float) $ret->refund_amount, $ret->order->returnCredit($ret->orderItem)), 2) }}</span>
+                                    @elseif((float) $ret->cod_adjustment > 0)
+                                        <span class="admin-order-card__total tabular">COD reduction: ₱{{ number_format((float) $ret->cod_adjustment, 2) }}</span>
+                                    @elseif((float) $ret->refund_amount > 0 && in_array($ret->status, ['approved', 'refunded'], true))
+                                        <span class="admin-order-card__total tabular">Refund: ₱{{ number_format((float) $ret->refund_amount, 2) }}</span>
+                                    @endif
                                 </div>
                             </div>
 
@@ -692,7 +711,7 @@
                                     <form method="POST" action="{{ route('admin.returns.process', $ret) }}" class="admin-action-bar">
                                         @csrf
                                         <input type="text" name="admin_remarks" placeholder="Resolution remarks" class="field-control">
-                                        <button type="submit" name="decision" value="approved" class="tag-btn tag-btn--canopy">Approve &amp; Refund</button>
+                                        <button type="submit" name="decision" value="approved" class="tag-btn tag-btn--canopy">Approve Request</button>
                                         <button type="submit" name="decision" value="rejected" class="tag-btn tag-btn--outline">Reject</button>
                                     </form>
                                 @else

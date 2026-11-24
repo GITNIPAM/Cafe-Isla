@@ -58,12 +58,18 @@ class DualChannelMailService
 
     public function sendOrderCancellation(Order $order, string $reason = 'Cancelled prior to preparation'): EmailLog
     {
+        $payment = $order->payment;
+        $paymentNote = match (true) {
+            (float) $payment?->refunded_amount > 0 => '<p>Simulated refund recorded: ₱'.number_format((float) $payment->refunded_amount, 2).'.</p>',
+            $payment?->method === 'cod' && $payment->status === 'pending' => '<p>There is no Cash on Delivery payment due.</p>',
+            default => '',
+        };
         $subject = 'Café Isla · Order #'.$order->order_number.' Cancelled';
         $html = $this->wrapTemplate(
             'Order #'.e($order->order_number).' Cancelled',
             '<p>Your order <strong>#'.e($order->order_number).'</strong> has been cancelled before barista prep.</p>'
             .'<p><strong>Reason:</strong> '.e($reason).'</p>'
-            .'<p>Any stocked items were returned to batch inventory and prepaid payments (₱'.number_format((float) $order->grand_total, 2).') have been marked refunded.</p>'
+            .$paymentNote
         );
 
         return $this->dispatchAndLog($order->billing_email, $order->user_id, $order->id, 'order_cancellation', $subject, $html);
@@ -73,17 +79,19 @@ class DualChannelMailService
     {
         $order = $returnRequest->order;
         $statusLabel = ucfirst($returnRequest->status);
-        $restockLine = $returnRequest->restock_applied
-            ? '<p>Unworn non-perishable Isla Merch stock was restored to inventory (+1).</p>'
-            : ($returnRequest->status === 'approved'
-                ? '<p>Because crafted beverages are perishable, a refund was issued without returning drinks to inventory.</p>'
-                : '');
+        $restockLine = $returnRequest->restock_applied ? '<p>Eligible merch stock was restored to inventory.</p>' : '';
+        $paymentLine = match (true) {
+            (float) $returnRequest->cod_adjustment > 0 => '<p><strong>Cash on Delivery reduction:</strong> ₱'.number_format((float) $returnRequest->cod_adjustment, 2).'</p>'
+                .'<p><strong>Remaining balance:</strong> ₱'.number_format($order->payment?->amountToCollect() ?? 0, 2).'</p>',
+            (float) $returnRequest->refund_amount > 0 => '<p><strong>Simulated refund:</strong> ₱'.number_format((float) $returnRequest->refund_amount, 2).'</p>',
+            default => '',
+        };
 
         $subject = 'Café Isla · Return Request '.$statusLabel.' (#'.$order->order_number.')';
         $html = $this->wrapTemplate(
             'Return & Refund Update — '.$statusLabel,
             '<p>Your <strong>'.e(str_replace('_', ' ', $returnRequest->request_type)).'</strong> request for Order <strong>#'.e($order->order_number).'</strong> is now <strong>'.e($statusLabel).'</strong>.</p>'
-            .'<p><strong>Refund Amount:</strong> ₱'.number_format((float) $returnRequest->refund_amount, 2).'</p>'
+            .$paymentLine
             .$restockLine
             .($returnRequest->admin_remarks ? '<p><strong>Café Team Note:</strong> '.e($returnRequest->admin_remarks).'</p>' : '')
         );

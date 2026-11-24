@@ -8,6 +8,7 @@ use App\Services\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\View\View;
 
 class CartController extends Controller
@@ -60,10 +61,11 @@ class CartController extends Controller
         }
 
         $validated = $request->validate([
-            'quantity' => ['required', 'integer', 'min:0', 'max:25'],
+            'quantity' => ['required', 'integer', 'min:0', 'max:'.max(25, $cartItem->quantity)],
+            'custom_notes' => ['sometimes', 'nullable', 'string', 'max:160'],
         ]);
 
-        $result = $this->cartService->updateItemQuantity($cartItem, (int) $validated['quantity']);
+        $result = $this->cartService->updateItem($cartItem, (int) $validated['quantity'], Arr::only($validated, ['custom_notes']));
 
         if ($request->expectsJson() || $request->wantsJson()) {
             return response()->json($result, $result['ok'] ? 200 : 422);
@@ -79,13 +81,13 @@ class CartController extends Controller
             abort(403);
         }
 
-        $result = $this->cartService->updateItemQuantity($cartItem, 0);
+        $result = $this->cartService->updateItem($cartItem, 0);
 
         if ($request->expectsJson() || $request->wantsJson()) {
-            return response()->json($result);
+            return response()->json($result, $result['ok'] ? 200 : 422);
         }
 
-        return back()->with('success', $result['message']);
+        return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 
     public function applyCoupon(Request $request): RedirectResponse|JsonResponse

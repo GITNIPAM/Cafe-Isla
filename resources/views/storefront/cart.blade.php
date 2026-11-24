@@ -46,19 +46,20 @@
                                                 </a>
                                                 <div style="font-family:var(--font-mono);font-size:0.76rem;color:var(--taupe-muted);">
                                                     {{ $item['island_name'] }} &middot; {{ $item['variant_label'] }}
-                                                    @if($item['custom_notes'])
-                                                        <br>Note: {{ $item['custom_notes'] }}
-                                                    @endif
                                                 </div>
+                                                @if($item['is_perishable'] || $item['custom_notes'] !== null)
+                                                    <label class="field-label" for="bag-note-{{ $item['id'] }}">{{ $item['is_perishable'] ? 'Drink instructions' : 'Item instructions' }}</label>
+                                                    <input type="text" name="custom_notes" id="bag-note-{{ $item['id'] }}" form="bag-item-{{ $item['id'] }}" value="{{ $item['custom_notes'] }}" maxlength="160" class="field-control">
+                                                @endif
                                             </div>
                                         </div>
                                     </td>
                                     <td class="tabular" style="font-family:var(--font-mono);">₱{{ number_format($item['unit_price'], 2) }}</td>
                                     <td>
-                                        <form method="POST" action="{{ route('cart.items.update', $item['id']) }}" style="display:flex;gap:0.35rem;align-items:center;">
+                                        <form id="bag-item-{{ $item['id'] }}" method="POST" action="{{ route('cart.items.update', $item['id']) }}" style="display:flex;gap:0.35rem;align-items:center;">
                                             @csrf
                                             @method('PATCH')
-                                            <input type="number" name="quantity" value="{{ $item['quantity'] }}" min="0" max="{{ $item['max_stock'] }}" class="field-control tabular" style="width:70px;padding:0.35rem 0.5rem;">
+                                            <input type="number" name="quantity" aria-label="Quantity for {{ $item['product_name'] }}" value="{{ $item['quantity'] }}" min="0" max="{{ min(max(25, $item['quantity']), $item['max_stock']) }}" class="field-control tabular" style="width:70px;padding:0.35rem 0.5rem;">
                                             <button type="submit" class="tag-btn tag-btn--outline tag-btn--sm">Update</button>
                                         </form>
                                     </td>

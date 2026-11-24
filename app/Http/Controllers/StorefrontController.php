@@ -38,8 +38,19 @@ class StorefrontController extends Controller
         $islands = IslandSeries::orderBy('sort_order')->get();
         $categories = Category::where('is_archived', false)->orderBy('sort_order')->get();
 
-        $query = Product::with(['islandSeries', 'category', 'variants' => fn ($q) => $q->where('is_active', true)])
+        $serveTemp = $request->query('serve_temp');
+        $serveTemp = in_array($serveTemp, ['hot', 'iced'], true) ? $serveTemp : null;
+        $maxPrice = $request->query('max_price');
+        $maxPrice = is_numeric($maxPrice) && (float) $maxPrice >= 0 ? (float) $maxPrice : null;
+        $matchingVariants = fn ($q) => $q->where('is_active', true)
+            ->when($serveTemp, fn ($q) => $q->where('serve_temp', $serveTemp))
+            ->when($maxPrice !== null, fn ($q) => $q->where('price', '<=', $maxPrice));
+
+        $query = Product::with(['islandSeries', 'category', 'variants' => $matchingVariants])
             ->where('is_archived', false);
+        if ($serveTemp || $maxPrice !== null) {
+            $query->whereHas('variants', $matchingVariants);
+        }
 
         if ($search = trim((string) $request->query('q', ''))) {
             $query->where(function ($q) use ($search) {
@@ -66,27 +77,19 @@ class StorefrontController extends Controller
             }
         }
 
-        if ($serveTemp = $request->query('serve_temp')) {
-            if (in_array($serveTemp, ['hot', 'iced'], true)) {
-                $query->whereHas('variants', fn ($q) => $q->where('serve_temp', $serveTemp)->where('is_active', true));
-            }
-        }
-
-        if ($maxPrice = $request->query('max_price')) {
-            if (is_numeric($maxPrice) && (float) $maxPrice > 0) {
-                $query->where('base_price', '<=', (float) $maxPrice);
-            }
-        }
-
         $sort = $request->query('sort', 'series');
-        match ($sort) {
-            'price_asc' => $query->orderBy('base_price', 'asc'),
-            'price_desc' => $query->orderBy('base_price', 'desc'),
+        $query = match ($sort) {
             'name_asc' => $query->orderBy('name', 'asc'),
             default => $query->orderBy('island_series_id', 'asc')->orderBy('id', 'asc'),
         };
 
         $products = $query->get();
+        if (in_array($sort, ['price_asc', 'price_desc'], true)) {
+            $products = $products->sortBy(
+                fn (Product $product) => (float) ($product->displayVariant()?->price ?? $product->base_price),
+                descending: $sort === 'price_desc',
+            );
+        }
 
         return view('storefront.menu', [
             'islands' => $islands,

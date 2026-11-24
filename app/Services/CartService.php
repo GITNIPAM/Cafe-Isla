@@ -10,6 +10,7 @@ use App\Models\ShopVisit;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class CartService
@@ -68,32 +69,40 @@ class CartService
     {
         $token = $this->resolveToken($request);
 
-        $guestCart = Cart::with('items')
+        DB::transaction(function () use ($token, $user) {
+            $this->mergeCarts($token, $user->id);
+        }, 3);
+    }
+
+    private function mergeCarts(string $token, int $userId): void
+    {
+        $guestCart = Cart::with('items.variant')
             ->where('session_token', $token)
             ->where('status', 'active')
+            ->lockForUpdate()
             ->first();
 
-        $userCart = Cart::with('items')
-            ->where('user_id', $user->id)
+        $userCart = Cart::where('user_id', $userId)
             ->where('status', 'active')
             ->where('session_token', '!=', $token)
             ->latest('updated_at')
+            ->lockForUpdate()
             ->first();
 
         if ($guestCart && $userCart) {
             foreach ($guestCart->items as $guestItem) {
-                $existing = $userCart->items()
-                    ->where('product_variant_id', $guestItem->product_variant_id)
-                    ->first();
+                $variantItems = $userCart->items()->where('product_variant_id', $guestItem->product_variant_id)->get();
+                $remaining = max(0, $guestItem->variant->stock_qty - $variantItems->sum('quantity'));
+                $quantity = min($guestItem->quantity, $remaining);
+                if ($quantity === 0) {
+                    continue;
+                }
+
+                $existing = $variantItems->first(fn (CartItem $item) => $item->custom_notes === $guestItem->custom_notes);
                 if ($existing) {
-                    $existing->update([
-                        'quantity' => min(
-                            $existing->quantity + $guestItem->quantity,
-                            max(1, (int) $existing->variant->stock_qty)
-                        ),
-                    ]);
+                    $existing->increment('quantity', $quantity);
                 } else {
-                    $guestItem->update(['cart_id' => $userCart->id]);
+                    $guestItem->update(['cart_id' => $userCart->id, 'quantity' => $quantity]);
                 }
             }
             if (! $userCart->coupon_id && $guestCart->coupon_id) {
@@ -102,7 +111,7 @@ class CartService
             $guestCart->delete();
             $userCart->update(['session_token' => $token]);
         } elseif ($guestCart) {
-            $guestCart->update(['user_id' => $user->id]);
+            $guestCart->update(['user_id' => $userId]);
         } elseif ($userCart) {
             $userCart->update(['session_token' => $token]);
         }
@@ -119,74 +128,84 @@ class CartService
         }
 
         $cart = $this->getActiveCart($request, true);
-        $existing = $cart->items()->where('product_variant_id', $variant->id)->first();
-        $targetQty = ($existing ? $existing->quantity : 0) + max(1, $quantity);
+        $quantity = max(1, $quantity);
 
-        if ($targetQty > $variant->stock_qty) {
-            return [
-                'ok' => false,
-                'message' => 'Only '.$variant->stock_qty.' left in this batch for '.$variant->product->name.' ('.$variant->label.').',
-            ];
-        }
+        return DB::transaction(function () use ($cart, $quantity, $variant, $notes) {
+            $cart = Cart::lockForUpdate()->findOrFail($cart->id);
+            if ($cart->status !== 'active') {
+                return ['ok' => false, 'message' => 'Your bag changed. Refresh and try again.'];
+            }
 
-        if ($existing) {
-            $existing->update([
-                'quantity' => $targetQty,
-                'unit_price' => $variant->price,
-                'custom_notes' => $notes ?: $existing->custom_notes,
-            ]);
-        } else {
-            CartItem::create([
-                'cart_id' => $cart->id,
-                'product_variant_id' => $variant->id,
-                'quantity' => max(1, $quantity),
-                'custom_notes' => $notes,
-                'unit_price' => $variant->price,
-            ]);
-        }
+            $variantItems = $cart->items()->where('product_variant_id', $variant->id)->get();
+            if ($variantItems->sum('quantity') + $quantity > $variant->stock_qty) {
+                return [
+                    'ok' => false,
+                    'message' => 'Only '.$variant->stock_qty.' left in this batch for '.$variant->product->name.' ('.$variant->label.').',
+                ];
+            }
 
-        ShopVisit::where('session_token', $cart->session_token)
-            ->whereNull('converted_order_id')
-            ->update(['had_cart' => true]);
+            $existing = $variantItems->first(fn (CartItem $item) => $item->custom_notes === $notes);
+            if ($existing) {
+                $existing->update([
+                    'quantity' => $existing->quantity + $quantity,
+                    'unit_price' => $variant->price,
+                ]);
+            } else {
+                $cart->items()->create([
+                    'product_variant_id' => $variant->id,
+                    'quantity' => $quantity,
+                    'custom_notes' => $notes,
+                    'unit_price' => $variant->price,
+                ]);
+            }
 
-        return [
-            'ok' => true,
-            'message' => $variant->product->name.' ('.$variant->label.') poured into your bag.',
-            'summary' => $this->summarize($cart->fresh(['items.variant.product.islandSeries', 'coupon'])),
-        ];
-    }
-
-    public function updateItemQuantity(CartItem $item, int $quantity): array
-    {
-        if ($quantity <= 0) {
-            $cart = $item->cart;
-            $item->delete();
+            ShopVisit::where('session_token', $cart->session_token)
+                ->whereNull('converted_order_id')
+                ->update(['had_cart' => true]);
 
             return [
                 'ok' => true,
-                'message' => 'Item removed from your bag.',
-                'summary' => $this->summarize($cart->fresh(['items.variant.product.islandSeries', 'coupon'])),
+                'message' => $variant->product->name.' ('.$variant->label.') poured into your bag.',
+                'summary' => $this->summarize($cart->load(['items.variant.product.islandSeries', 'coupon'])),
             ];
-        }
+        }, 3);
+    }
 
-        $variant = $item->variant;
-        if ($quantity > $variant->stock_qty) {
+    public function updateItem(CartItem $item, int $quantity, array $notes = []): array
+    {
+        return DB::transaction(function () use ($item, $quantity, $notes) {
+            $cart = Cart::lockForUpdate()->find($item->cart_id);
+            $item = $cart?->items()->find($item->id);
+            if ($cart?->status !== 'active' || ! $item) {
+                return ['ok' => false, 'message' => 'Your bag changed. Refresh and try again.'];
+            }
+
+            $message = 'Item removed from your bag.';
+            if ($quantity <= 0) {
+                $item->delete();
+            } else {
+                $variant = $item->variant;
+                $otherQuantity = $cart->items()
+                    ->where('product_variant_id', $variant->id)
+                    ->whereKeyNot($item->id)
+                    ->sum('quantity');
+                if ($otherQuantity + $quantity > $variant->stock_qty) {
+                    return [
+                        'ok' => false,
+                        'message' => 'Only '.$variant->stock_qty.' available in stock for '.$variant->product->name.'.',
+                    ];
+                }
+
+                $item->update([...$notes, 'quantity' => $quantity, 'unit_price' => $variant->price]);
+                $message = 'Bag item updated.';
+            }
+
             return [
-                'ok' => false,
-                'message' => 'Only '.$variant->stock_qty.' available in stock for '.$variant->product->name.'.',
+                'ok' => true,
+                'message' => $message,
+                'summary' => $this->summarize($cart->load(['items.variant.product.islandSeries', 'coupon'])),
             ];
-        }
-
-        $item->update([
-            'quantity' => $quantity,
-            'unit_price' => $variant->price,
-        ]);
-
-        return [
-            'ok' => true,
-            'message' => 'Bag quantity updated.',
-            'summary' => $this->summarize($item->cart->fresh(['items.variant.product.islandSeries', 'coupon'])),
-        ];
+        }, 3);
     }
 
     public function applyCoupon(Cart $cart, string $code): array
@@ -243,10 +262,12 @@ class CartService
         $effectiveZone = $hasPerishables ? 'local_express' : $zone;
 
         $count = (int) $cart->items->sum('quantity');
+        $quantitiesByVariant = $cart->items->groupBy('product_variant_id')->map->sum('quantity');
 
-        $mappedItems = $cart->items->map(function (CartItem $item) use ($currentPrices) {
+        $mappedItems = $cart->items->map(function (CartItem $item) use ($currentPrices, $quantitiesByVariant) {
             $product = $item->variant->product;
             $price = (float) ($currentPrices ? $item->variant->price : $item->unit_price);
+            $otherQuantity = $quantitiesByVariant[$item->product_variant_id] - $item->quantity;
 
             return [
                 'id' => $item->id,
@@ -257,7 +278,7 @@ class CartService
                 'variant_label' => $item->variant->label,
                 'is_perishable' => (bool) $product->is_perishable,
                 'quantity' => $item->quantity,
-                'max_stock' => $item->variant->stock_qty,
+                'max_stock' => max(0, $item->variant->stock_qty - $otherQuantity),
                 'unit_price' => $price,
                 'line_total' => round($price * $item->quantity, 2),
                 'custom_notes' => $item->custom_notes,
