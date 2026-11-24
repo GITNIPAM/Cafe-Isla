@@ -6,7 +6,7 @@
 @endphp
 <article class="product-card">
     <a href="{{ route('product.show', $product->slug) }}" class="product-card__media">
-        <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}">
+        <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}" loading="lazy" decoding="async">
         <span class="product-card__stamp product-card__stamp--island" style="background-color: {{ $product->islandSeries->accent_hex }};">
             {{ str_replace(' Series', '', $product->islandSeries->name) }}
         </span>

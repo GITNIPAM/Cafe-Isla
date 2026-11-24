@@ -41,7 +41,7 @@
                                 <article style="border:1px solid var(--espresso-ink);padding:1.1rem;background:var(--bg-parchment);">
                                     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;align-items:center;">
                                         <div>
-                                            <strong class="tabular" style="font-family:var(--font-mono);font-size:0.95rem;">#{{ $order->order_number }}</strong>
+                                            <a class="tabular" href="{{ route('orders.track', ['order' => $order->order_number]) }}" style="font-family:var(--font-mono);font-size:0.95rem;">#{{ $order->order_number }}</a>
                                             <span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--taupe-muted);margin-left:0.5rem;">
                                                 {{ $order->placed_at->format('M d, Y g:i A') }}
                                             </span>
@@ -57,6 +57,7 @@
                                             <li>
                                                 {{ $item->quantity }}&times; {{ $item->product_name_snapshot }} ({{ $item->variant_label_snapshot }})
                                                 &mdash; <span class="tabular" style="font-family:var(--font-mono);">₱{{ number_format((float) $item->line_total, 2) }}</span>
+                                                @if($item->custom_notes)<br><span>{{ $item->custom_notes }}</span>@endif
                                             </li>
                                         @endforeach
                                     </ul>

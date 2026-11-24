@@ -1372,3 +1372,19 @@ textarea {
     aspect-ratio: 16 / 10;
   }
 }
+.newsletter-form {
+    display: grid;
+    gap: 0.55rem;
+    font-size: 0.8rem;
+}
+
+.newsletter-consent {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.newsletter-form a {
+    width: fit-content;
+    text-decoration: underline;
+}

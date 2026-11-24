@@ -222,7 +222,7 @@ class CartService
         return round((float) $cart->items->sum(fn (CartItem $i) => (float) $i->unit_price * $i->quantity), 2);
     }
 
-    public function summarize(?Cart $cart, string $zone = 'local_express'): array
+    public function summarize(?Cart $cart, string $zone = 'local_express', bool $currentPrices = false): array
     {
         if (! $cart || $cart->items->isEmpty()) {
             return [
@@ -242,28 +242,11 @@ class CartService
         $hasPerishables = $cart->items->contains(fn (CartItem $i) => (bool) ($i->variant?->product?->is_perishable));
         $effectiveZone = $hasPerishables ? 'local_express' : $zone;
 
-        $subtotal = $this->calculateSubtotal($cart);
-        $discount = $cart->coupon ? $cart->coupon->computeDiscount($subtotal) : 0.0;
-        $afterDiscount = max(0.0, $subtotal - $discount);
-
-        $deliveryFee = 0.0;
-        if ($afterDiscount < self::FREE_DELIVERY_THRESHOLD) {
-            $deliveryFee = $effectiveZone === 'provincial_parcel'
-                ? self::PROVINCIAL_PARCEL_FEE
-                : self::LOCAL_EXPRESS_FEE;
-        }
-
-        if ($cart->coupon && strtoupper($cart->coupon->code) === 'FREESIP' && $effectiveZone === 'local_express') {
-            $deliveryFee = 0.0;
-            $discount = 0.0;
-            $afterDiscount = $subtotal;
-        }
-
-        $grandTotal = round($afterDiscount + $deliveryFee, 2);
         $count = (int) $cart->items->sum('quantity');
 
-        $mappedItems = $cart->items->map(function (CartItem $item) {
+        $mappedItems = $cart->items->map(function (CartItem $item) use ($currentPrices) {
             $product = $item->variant->product;
+            $price = (float) ($currentPrices ? $item->variant->price : $item->unit_price);
 
             return [
                 'id' => $item->id,
@@ -275,24 +258,42 @@ class CartService
                 'is_perishable' => (bool) $product->is_perishable,
                 'quantity' => $item->quantity,
                 'max_stock' => $item->variant->stock_qty,
-                'unit_price' => (float) $item->unit_price,
-                'line_total' => $item->lineTotal(),
+                'unit_price' => $price,
+                'line_total' => round($price * $item->quantity, 2),
                 'custom_notes' => $item->custom_notes,
                 'image_url' => $product->imageUrl(),
             ];
         })->values()->all();
 
+        $subtotal = round(array_sum(array_column($mappedItems, 'line_total')), 2);
+
         return [
             'count' => $count,
             'items' => $mappedItems,
-            'subtotal' => $subtotal,
-            'discount_amount' => $discount,
-            'delivery_fee' => $deliveryFee,
-            'grand_total' => $grandTotal,
+            ...$this->calculateTotals($subtotal, $cart->coupon, $effectiveZone),
             'has_perishables' => $hasPerishables,
-            'free_shipping_gap' => max(0.0, round(self::FREE_DELIVERY_THRESHOLD - $afterDiscount, 2)),
             'coupon_code' => $cart->coupon?->code,
             'delivery_zone' => $effectiveZone,
+        ];
+    }
+
+    public function calculateTotals(float $subtotal, ?Coupon $coupon, string $zone): array
+    {
+        $isDeliveryPromo = strtoupper($coupon?->code ?? '') === 'FREESIP';
+        $couponValue = $coupon?->computeDiscount($subtotal) ?? 0.0;
+        $discount = $isDeliveryPromo ? 0.0 : $couponValue;
+        $afterDiscount = max(0.0, $subtotal - $discount);
+        $freeDelivery = $afterDiscount >= self::FREE_DELIVERY_THRESHOLD
+            || ($isDeliveryPromo && $couponValue > 0 && $zone === 'local_express');
+        $standardFee = $zone === 'provincial_parcel' ? self::PROVINCIAL_PARCEL_FEE : self::LOCAL_EXPRESS_FEE;
+        $fee = $freeDelivery ? 0.0 : $standardFee;
+
+        return [
+            'subtotal' => $subtotal,
+            'discount_amount' => $discount,
+            'delivery_fee' => $fee,
+            'grand_total' => round($afterDiscount + $fee, 2),
+            'free_shipping_gap' => $freeDelivery ? 0.0 : round(self::FREE_DELIVERY_THRESHOLD - $afterDiscount, 2),
         ];
     }
 }

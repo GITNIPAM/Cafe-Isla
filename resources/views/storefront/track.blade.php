@@ -7,7 +7,11 @@
         <div class="container">
             <h1 class="page-intro__title">Track Your Archipelago Order</h1>
             <p class="page-intro__lead">
+<<<<<<< HEAD
                 Enter any Café Isla order number (<strong>CI-2026-1003</strong>) or tracking number (<strong>TRK-1003-ISLA</strong>) to check live prep and rider updates.
+=======
+                Enter the order number from your receipt or <a href="{{ route('account.index') }}">account</a> to check prep and delivery updates.
+>>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
             </p>
         </div>
     </section>
@@ -15,13 +19,17 @@
     <section class="container operate-main">
         <div class="ledger-panel" style="max-width:760px;">
             <form method="GET" action="{{ route('orders.track') }}" style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+<<<<<<< HEAD
                 <input type="text" name="order" value="{{ $orderNumber }}" placeholder="Order # or Tracking # (e.g. CI-2026-1003 or TRK-1003-ISLA)" class="field-control" style="flex:1;" required>
+=======
+                <input type="text" name="order" value="{{ $orderNumber }}" aria-label="Order number" placeholder="Enter order number" class="field-control" style="flex:1;" required>
+>>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
                 <button type="submit" class="tag-btn tag-btn--canopy">Track Order</button>
             </form>
 
             @if($orderNumber !== '' && ! $order)
                 <p style="margin-top:1.25rem;font-family:var(--font-mono);color:var(--clay-coral);">
-                    No order matched code <strong>{{ $orderNumber }}</strong>. Check your confirmation email or sign in under Account.
+                    No order in your account matched <strong>{{ $orderNumber }}</strong>. Check your confirmation email or order history.
                 </p>
             @elseif($order)
                 <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--espresso-ink);">

@@ -23,6 +23,12 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        if (! config('cafeisla.demo_mode')) {
+            $this->command?->warn('Demo records require CAFE_ISLA_DEMO_MODE=true.');
+
+            return;
+        }
+
         $password = Hash::make('Isla2026!');
 
         // 1. Users (4 RBAC Demo Accounts + 2 Additional Customers)

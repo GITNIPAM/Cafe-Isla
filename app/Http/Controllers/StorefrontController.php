@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\IslandSeries;
-use App\Models\Order;
 use App\Models\Product;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class StorefrontController extends Controller
 {
@@ -94,12 +96,26 @@ class StorefrontController extends Controller
         ]);
     }
 
-    public function show(string $slug): View
+    public function show(string $slug): View|RedirectResponse
     {
         $product = Product::with(['islandSeries', 'category', 'variants' => fn ($q) => $q->where('is_active', true)])
             ->where('slug', $slug)
             ->where('is_archived', false)
-            ->firstOrFail();
+            ->first();
+
+        if (! $product) {
+            $replacement = [
+                'muni-matcha' => 'urbiztondo-morning-matcha',
+                'dulce-matcha' => 'monaliza-caramel-matcha',
+                'isla-matcha' => 'carille-coco-matcha',
+                'berry-matcha' => 'tangadan-berry-matcha',
+                'spanish-hojicha' => 'san-juan-spanish-hojicha',
+            ][$slug] ?? null;
+
+            abort_unless($replacement && Product::where('slug', $replacement)->where('is_archived', false)->exists(), 404);
+
+            return redirect()->route('product.show', $replacement, 301);
+        }
 
         $related = Product::with(['islandSeries', 'variants' => fn ($q) => $q->where('is_active', true)])
             ->where('is_archived', false)
@@ -116,6 +132,7 @@ class StorefrontController extends Controller
 
     public function track(Request $request): View
     {
+<<<<<<< HEAD
         $orderNumber = trim((string) $request->query('order', ''));
         $lookup = strtoupper(ltrim($orderNumber, '#'));
         $order = null;
@@ -124,6 +141,15 @@ class StorefrontController extends Controller
             $order = Order::with(['items', 'payment', 'delivery.courier', 'returnRequests'])
                 ->whereRaw('UPPER(order_number) = ?', [$lookup])
                 ->orWhereHas('delivery', fn ($q) => $q->whereRaw('UPPER(tracking_number) = ?', [$lookup]))
+=======
+        $orderQuery = $request->query('order', '');
+        $orderNumber = is_string($orderQuery) ? trim($orderQuery) : '';
+        $order = null;
+
+        if ($orderNumber !== '') {
+            $order = $request->user()->orders()->with(['items', 'delivery.courier'])
+                ->whereRaw('UPPER(order_number) = ?', [strtoupper($orderNumber)])
+>>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
                 ->first();
         }
 
@@ -133,8 +159,18 @@ class StorefrontController extends Controller
         ]);
     }
 
+    public function productImage(string $filename): BinaryFileResponse
+    {
+        $disk = Storage::disk('catalog_uploads');
+        abort_unless($disk->fileExists($filename), 404);
+
+        return response()->file($disk->path($filename), ['X-Content-Type-Options' => 'nosniff']);
+    }
+
     public function diagrams(): View
     {
+        abort_unless(config('cafeisla.demo_mode'), 404);
+
         return view('storefront.diagrams');
     }
 }

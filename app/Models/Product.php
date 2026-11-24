@@ -76,6 +76,23 @@ class Product extends Model
             return $this->image_path;
         }
 
-        return asset(ltrim($this->image_path, '/'));
+        $path = ltrim($this->image_path, '/');
+        if (str_starts_with($path, 'assets/images/drinks/')) {
+            $filename = basename($path);
+            $replacement = [
+                'muni-matcha.jpg' => 'urbiztondo-morning-matcha.jpg',
+                'dulce-matcha.jpg' => 'monaliza-caramel-matcha.jpg',
+                'berry-matcha.jpg' => 'tangadan-berry-matcha.jpg',
+                'spanish-hojicha.jpg' => 'san-juan-spanish-hojicha.jpg',
+                'tablea-mocha.jpg' => 'tablea-cacao-mocha.jpg',
+                'mango-fizz.jpg' => 'golden-hour-mango-fizz.jpg',
+                'barako-tres.jpg' => 'barako-tres-leches-latte.jpg',
+                'golden-turmeric.jpg' => 'palawan-golden-turmeric-latte.jpg',
+                'lychee-rose.jpg' => 'miniloc-lychee-rose-white-tea.jpg',
+            ][$filename] ?? $filename;
+            $path = 'assets/images/drinks/'.$replacement;
+        }
+
+        return asset($path);
     }
 }

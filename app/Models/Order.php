@@ -83,6 +83,15 @@ class Order extends Model
         return $this->status === 'pending';
     }
 
+    public function nextCourierStatus(): ?string
+    {
+        return match (true) {
+            $this->delivery?->status === 'assigned' && in_array($this->status, ['confirmed', 'preparing'], true) => 'shipped',
+            $this->delivery?->status === 'in_transit' && $this->status === 'shipped' => 'delivered',
+            default => null,
+        };
+    }
+
     public function canRequestReturnByCustomer(): bool
     {
         return in_array($this->status, ['delivered', 'shipped'], true);

@@ -14,10 +14,15 @@ use App\Models\User;
 use App\Services\DualChannelMailService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use League\Flysystem\FilesystemException;
 
 class AdminPortalController extends Controller
 {
@@ -69,8 +74,7 @@ class AdminPortalController extends Controller
 
         if ($role === 'courier') {
             $ordersQuery->whereHas('delivery', function ($q) use ($user) {
-                $q->where('courier_user_id', $user->id)
-                    ->orWhereIn('status', ['assigned', 'in_transit', 'delivered']);
+                $q->where('courier_user_id', $user->id);
             });
         }
 
@@ -153,14 +157,7 @@ class AdminPortalController extends Controller
 
         $imagePath = 'assets/images/editorial/menu-table-ritual.jpg';
         if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            $dir = public_path('uploads/products');
-            if (! is_dir($dir)) {
-                mkdir($dir, 0755, true);
-            }
-            $filename = Str::slug($validated['name']).'-'.time().'.'.$file->getClientOriginalExtension();
-            $file->move($dir, $filename);
-            $imagePath = 'uploads/products/'.$filename;
+            $imagePath = $this->storeProductImage($request->file('image'));
         }
 
         $slug = Str::slug($validated['name']);
@@ -213,14 +210,7 @@ class AdminPortalController extends Controller
 
         $imagePath = $product->image_path;
         if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            $dir = public_path('uploads/products');
-            if (! is_dir($dir)) {
-                mkdir($dir, 0755, true);
-            }
-            $filename = Str::slug($validated['name']).'-'.time().'.'.$file->getClientOriginalExtension();
-            $file->move($dir, $filename);
-            $imagePath = 'uploads/products/'.$filename;
+            $imagePath = $this->storeProductImage($request->file('image'));
         }
 
         $product->update([
@@ -277,6 +267,23 @@ class AdminPortalController extends Controller
         return redirect()->route('admin.index', ['tab' => 'inventory'])->with('success', 'Stock and price updated for '.$variant->product->name.' ('.$variant->label.').');
     }
 
+    private function storeProductImage(UploadedFile $file): string
+    {
+        try {
+            $name = Storage::disk('catalog_uploads')->putFile('', $file);
+        } catch (FilesystemException $exception) {
+            report($exception);
+
+            throw ValidationException::withMessages(['image' => 'The upload folder is unavailable. Ask the site administrator to check its write permissions.']);
+        }
+
+        if ($name === false) {
+            throw ValidationException::withMessages(['image' => 'The image could not be saved.']);
+        }
+
+        return 'uploads/products/'.$name;
+    }
+
     public function deleteProduct(Product $product): RedirectResponse
     {
         if ($product->orderItems()->exists()) {
@@ -331,22 +338,38 @@ class AdminPortalController extends Controller
     public function updateOrderStatus(Request $request, Order $order): RedirectResponse
     {
         $user = $request->user();
+        $isCourier = $user->role === 'courier';
         $validated = $request->validate([
             'status' => ['required', 'in:pending,confirmed,preparing,shipped,delivered,cancelled'],
+<<<<<<< HEAD
             'delivery_status' => ['nullable', 'in:unassigned,assigned,in_transit,delivered'],
             'courier_user_id' => ['nullable', 'integer', 'exists:users,id'],
+=======
+            'courier_user_id' => [$isCourier ? 'prohibited' : 'nullable', 'integer', Rule::exists('users', 'id')->where('role', 'courier')->where('is_active', true)],
+>>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
             'proof_notes' => ['nullable', 'string', 'max:255'],
         ]);
 
         $newStatus = $validated['status'];
-        if ($user->role === 'courier' && ! in_array($newStatus, ['shipped', 'delivered'], true)) {
-            abort(403, 'Couriers can only mark orders In Transit or Delivered.');
-        }
-
-        $delivery = $order->delivery;
         $shouldNotify = false;
 
+<<<<<<< HEAD
         DB::transaction(function () use ($order, $delivery, $validated, $newStatus, $user, &$shouldNotify) {
+=======
+        DB::transaction(function () use ($order, $user, $isCourier, $validated, $newStatus, &$shouldNotify) {
+            $order = Order::lockForUpdate()->findOrFail($order->id);
+            $delivery = $order->delivery()->lockForUpdate()->first();
+            if ($isCourier) {
+                abort_unless($delivery && (int) $delivery->courier_user_id === $user->id, 403);
+                $order->setRelation('delivery', $delivery);
+                abort_unless(
+                    $order->nextCourierStatus() === $newStatus,
+                    403,
+                    'Couriers can pick up ready orders and complete deliveries in transit.'
+                );
+            }
+
+>>>>>>> d928f5281ec3052abf486ea187f910b3988025e3
             $oldStatus = $order->status;
             $order->update(['status' => $newStatus]);
 
